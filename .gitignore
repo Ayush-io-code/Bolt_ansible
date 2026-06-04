@@ -1,0 +1,24 @@
+# SSH keys — never commit these
+ssh-keys/
+
+# Python
+pycache/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Environment files with secrets
+.env
+*.env
+
+# Ansible logs and retry files
+ansible/logs/
+*.retry
+
+# Docker volumes
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

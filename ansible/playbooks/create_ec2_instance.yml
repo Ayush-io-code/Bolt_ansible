@@ -1,0 +1,23 @@
+---
+- name: AWS EC2 Provisioning
+  hosts: localhost
+
+  tasks:
+    - command: ansible-galaxy collection install amazon.aws
+      changed_when: false
+
+    - name: Retrieve AWS credentials placeholder
+      debug:
+        msg: "Fetch credentials from Vault or AWS Secrets Manager"
+
+    - amazon.aws.ec2_instance:
+        name: "{{ instance_name }}"
+        image_id: "{{ ami_id }}"
+        instance_type: "{{ instance_type }}"
+        region: "{{ region }}"
+        wait: yes
+      register: ec2
+
+    - copy:
+        dest: /tmp/ec2_report.txt
+        content: "Created {{ ec2.instances[0].instance_id }}"

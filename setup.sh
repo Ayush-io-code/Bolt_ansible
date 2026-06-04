@@ -1,0 +1,219 @@
+#!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Bolt — Setup Script
+#  Usage:
+#    ./setup.sh            → interactive, asks how many hosts
+#    ./setup.sh 5          → directly spin up 5 hosts
+#    ./setup.sh --destroy  → tear everything down
+# ═══════════════════════════════════════════════════════════════════════════════
+
+set -e
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ── Config ────────────────────────────────────────────────────────────────────
+KEY_DIR="./ssh-keys"
+PRIVATE_KEY="$KEY_DIR/bolt_rsa"
+PUBLIC_KEY="$KEY_DIR/bolt_rsa.pub"
+COMPOSE_FILE="./docker-compose.yml"
+INVENTORY_FILE="./ansible/inventory/hosts.yml"
+HOST_START_IP=20      # hosts start at 172.20.0.21, 172.20.0.22 ...
+MAX_HOSTS=20          # max hosts to prevent subnet overflow
+
+# ── Banner ────────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${CYAN}${BOLD}"
+echo "  ⚡  BOLT — Automation Platform Setup"
+echo "  ──────────────────────────────────────────"
+echo -e "${NC}"
+
+# ── Destroy mode ──────────────────────────────────────────────────────────────
+if [[ "$1" == "--destroy" ]]; then
+  echo -e "${RED}→  Tearing down all Bolt containers...${NC}"
+  docker compose down -v --remove-orphans 2>/dev/null || true
+  echo -e "${GREEN}✔  All containers stopped and removed.${NC}"
+  echo ""
+  exit 0
+fi
+
+# ── How many hosts? ───────────────────────────────────────────────────────────
+if [[ -n "$1" && "$1" =~ ^[0-9]+$ ]]; then
+  NUM_HOSTS=$1
+else
+  echo -e "${CYAN}How many target hosts do you want to spin up?${NC}"
+  echo -e "  (These are the servers Ansible will run playbooks on)"
+  echo -e "  Max: $MAX_HOSTS"
+  echo ""
+  read -p "  Number of hosts [default: 2]: " NUM_HOSTS
+  NUM_HOSTS=${NUM_HOSTS:-2}
+fi
+
+# Validate
+if ! [[ "$NUM_HOSTS" =~ ^[0-9]+$ ]] || [ "$NUM_HOSTS" -lt 1 ] || [ "$NUM_HOSTS" -gt "$MAX_HOSTS" ]; then
+  echo -e "${RED}✗  Invalid number. Please enter a number between 1 and $MAX_HOSTS.${NC}"
+  exit 1
+fi
+
+echo ""
+echo -e "${BOLD}→  Setting up Bolt with ${CYAN}$NUM_HOSTS host(s)${NC}"
+echo ""
+
+# ── Step 1: Generate SSH keys ─────────────────────────────────────────────────
+echo -e "${BOLD}[1/4] SSH Keys${NC}"
+
+mkdir -p "$KEY_DIR"
+
+if [ -f "$PRIVATE_KEY" ]; then
+  echo -e "  ${YELLOW}⚠  Keys already exist. Reusing existing keys.${NC}"
+  echo -e "     (Delete ssh-keys/ folder to regenerate)"
+else
+  echo -e "  → Generating 4096-bit RSA key pair..."
+  ssh-keygen -t rsa -b 4096 \
+    -f "$PRIVATE_KEY" \
+    -N "" \
+    -C "bolt-ansible@homelab" -q
+  chmod 600 "$PRIVATE_KEY"
+  chmod 644 "$PUBLIC_KEY"
+  echo -e "  ${GREEN}✔  Keys generated${NC}"
+  echo -e "     Private : $PRIVATE_KEY"
+  echo -e "     Public  : $PUBLIC_KEY"
+fi
+echo ""
+
+# ── Step 2: Generate docker-compose hosts section ─────────────────────────────
+echo -e "${BOLD}[2/4] Generating docker-compose.yml${NC}"
+
+# Write the base compose (backend + frontend)
+cat > "$COMPOSE_FILE" << 'COMPOSE_BASE'
+version: "3.9"
+
+services:
+
+  # ── Backend: Flask API + Ansible engine ──────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: bolt-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./ansible:/ansible
+      - ./backend:/app
+      - ansible_logs:/ansible/logs
+      - ./ssh-keys/bolt_rsa:/root/.ssh/id_rsa:ro
+    environment:
+      - FLASK_ENV=development
+      - ANSIBLE_BASE=/ansible
+    networks:
+      bolt-net:
+        ipv4_address: 172.20.0.10
+
+  # ── Frontend: Nginx serving static HTML/JS ───────────────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: bolt-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      bolt-net:
+        ipv4_address: 172.20.0.11
+
+COMPOSE_BASE
+
+# Append one block per host
+for i in $(seq 1 $NUM_HOSTS); do
+  IP_LAST=$((HOST_START_IP + i))
+  IP="172.20.0.$IP_LAST"
+
+  cat >> "$COMPOSE_FILE" << HOST_BLOCK
+  # ── Target host $i ────────────────────────────────────────────────────────────
+  target-host-$i:
+    build:
+      context: .
+      dockerfile: ./docker/target-host/Dockerfile
+    container_name: bolt-host$i
+    hostname: host$i.bolt.local
+    networks:
+      bolt-net:
+        ipv4_address: $IP
+
+HOST_BLOCK
+done
+
+# Append networks and volumes
+cat >> "$COMPOSE_FILE" << 'COMPOSE_FOOTER'
+networks:
+  bolt-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+volumes:
+  ansible_logs:
+COMPOSE_FOOTER
+
+echo -e "  ${GREEN}✔  docker-compose.yml updated with $NUM_HOSTS host(s)${NC}"
+echo ""
+
+# ── Step 3: Generate Ansible inventory ────────────────────────────────────────
+echo -e "${BOLD}[3/4] Generating Ansible inventory${NC}"
+
+mkdir -p ./ansible/inventory
+
+cat > "$INVENTORY_FILE" << 'INV_HEADER'
+# Auto-generated by setup.sh — do not edit manually
+# Re-run ./setup.sh to regenerate
+
+webservers:
+  hosts:
+INV_HEADER
+
+for i in $(seq 1 $NUM_HOSTS); do
+  IP_LAST=$((HOST_START_IP + i))
+  IP="172.20.0.$IP_LAST"
+
+  cat >> "$INVENTORY_FILE" << HOST_INV
+    host$i.bolt.local:
+      ansible_host: $IP
+      ansible_user: root
+      ansible_ssh_private_key_file: /root/.ssh/id_rsa
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+HOST_INV
+done
+
+echo -e "  ${GREEN}✔  Inventory updated with $NUM_HOSTS host(s)${NC}"
+echo ""
+
+# ── Step 4: Build and start containers ────────────────────────────────────────
+echo -e "${BOLD}[4/4] Starting containers${NC}"
+echo -e "  → Running: docker compose up --build -d"
+echo -e "  ${YELLOW}(This may take a few minutes on first run)${NC}"
+echo ""
+
+docker compose up --build -d
+
+echo ""
+echo -e "${GREEN}${BOLD}✔  Bolt is running!${NC}"
+echo ""
+echo -e "  ${CYAN}Web UI    →  http://localhost:8080${NC}"
+echo -e "  ${CYAN}API       →  http://localhost:5000/api/health${NC}"
+echo ""
+echo -e "  Target hosts:"
+for i in $(seq 1 $NUM_HOSTS); do
+  IP_LAST=$((HOST_START_IP + i))
+  echo -e "  ${GREEN}✔${NC}  bolt-host$i   →  172.20.0.$IP_LAST  (host$i.bolt.local)"
+done
+echo ""
+echo -e "  To stop:    ${YELLOW}docker compose down${NC}"
+echo -e "  To destroy: ${YELLOW}./setup.sh --destroy${NC}"
+echo -e "  To rebuild: ${YELLOW}./setup.sh <number_of_hosts>${NC}"
+echo ""

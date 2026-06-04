@@ -1,0 +1,33 @@
+---
+- name: Terraform Operations
+  hosts: localhost
+
+  pre_tasks:
+    - assert:
+        that:
+          - workspace | length > 0
+          - action in ['plan','apply','destroy']
+
+    - fail:
+        msg: "Destroy requires approval"
+      when:
+        - action == 'destroy'
+        - destroy_approved | default('no') != 'yes'
+
+  tasks:
+    - command: terraform init
+      args:
+        chdir: /opt/terraform
+
+    - command: terraform workspace select {{ workspace }}
+      args:
+        chdir: /opt/terraform
+
+    - command: terraform {{ action }} -auto-approve
+      args:
+        chdir: /opt/terraform
+      register: tf_result
+
+    - copy:
+        dest: /tmp/terraform_report.txt
+        content: "{{ tf_result.stdout }}"

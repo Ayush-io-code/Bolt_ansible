@@ -1,0 +1,22 @@
+{
+  "description": "Enterprise Docker Deployment",
+  "inputs": [
+    {
+      "name": "image_name",
+      "type": "text"
+    },
+    {
+      "name": "image_tag",
+      "type": "text",
+      "default": "latest"
+    },
+    {
+      "name": "container_name",
+      "type": "text"
+    },
+    {
+      "name": "port_mapping",
+      "type": "text"
+    }
+  ]
+}

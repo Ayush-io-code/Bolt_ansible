@@ -1,0 +1,35 @@
+---
+- name: Kubernetes Deployment
+  hosts: localhost
+
+  tasks:
+    - command: ansible-galaxy collection install kubernetes.core
+      changed_when: false
+
+    - kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ namespace }}"
+        state: present
+
+    - kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ deployment_name }}"
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: "{{ replicas }}"
+            selector:
+              matchLabels:
+                app: "{{ deployment_name }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ deployment_name }}"
+              spec:
+                containers:
+                  - name: "{{ deployment_name }}"
+                    image: "{{ image }}"

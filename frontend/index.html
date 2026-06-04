@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bolt — Ansible Automation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS — DARK + LIGHT THEMES
+   ═══════════════════════════════════════════════ */
+:root, [data-theme="dark"] {
+  --bg:         #111318;
+  --surface:    #191c23;
+  --surface2:   #1e2230;
+  --border:     #272d3d;
+  --border2:    #323a4f;
+  --accent:     #4f8ef7;
+  --accent-dim: rgba(79,142,247,.12);
+  --green:      #3ecf72;
+  --green-dim:  rgba(62,207,114,.12);
+  --red:        #f05252;
+  --red-dim:    rgba(240,82,82,.12);
+  --yellow:     #f6a623;
+  --yellow-dim: rgba(246,166,35,.12);
+  --text:       #e2e8f0;
+  --text2:      #94a3b8;
+  --text3:      #4e5d78;
+  --mono:       'IBM Plex Mono', monospace;
+  --sans:       'IBM Plex Sans', sans-serif;
+  --radius:     6px;
+  --shadow:     0 1px 3px rgba(0,0,0,.4);
+}
+[data-theme="light"] {
+  --bg:         #f4f6f9;
+  --surface:    #ffffff;
+  --surface2:   #edf1f7;
+  --border:     #dde3ed;
+  --border2:    #c6cfdf;
+  --accent:     #2563eb;
+  --accent-dim: rgba(37,99,235,.1);
+  --green:      #16a34a;
+  --green-dim:  rgba(22,163,74,.1);
+  --red:        #dc2626;
+  --red-dim:    rgba(220,38,38,.1);
+  --yellow:     #d97706;
+  --yellow-dim: rgba(217,119,6,.1);
+  --text:       #1e2537;
+  --text2:      #475569;
+  --text3:      #94a3b8;
+  --shadow:     0 1px 3px rgba(0,0,0,.1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════ */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 200;
+  gap: 16px;
+}
+.logo {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 15px; font-weight: 500;
+  color: var(--text); white-space: nowrap;
+}
+.logo-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #fff;
+}
+.header-right {
+  display: flex; align-items: center; gap: 12px;
+}
+.status-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  transition: background .3s;
+}
+.status-dot.offline { background: var(--red); }
+#clock { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+/* Theme toggle */
+.theme-btn {
+  width: 32px; height: 32px; border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2); cursor: pointer; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════ */
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr 360px;
+  height: calc(100vh - 52px);
+}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════════════ */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px 0;
+}
+.sidebar-label {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  color: var(--text3); letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 0 14px 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 14px;
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  color: var(--text2);
+  transition: all .12s;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  user-select: none;
+}
+.nav-item:hover { color: var(--text); background: var(--accent-dim); }
+.nav-item.active {
+  color: var(--accent); border-left-color: var(--accent);
+  background: var(--accent-dim);
+}
+.nav-icon { width: 16px; text-align: center; opacity: .8; font-style: normal; }
+
+/* ═══════════════════════════════════════════════
+   MAIN
+   ═══════════════════════════════════════════════ */
+main { overflow-y: auto; padding: 20px 24px; background: var(--bg); }
+
+.page { display: none; }
+.page.active { display: block; }
+
+.page-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px;
+}
+.page-title {
+  font-size: 16px; font-weight: 600; color: var(--text);
+}
+.page-subtitle { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+/* ═══════════════════════════════════════════════
+   CARDS
+   ═══════════════════════════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 12px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .5px;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-title-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent-dim); color: var(--accent);
+  font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════
+   SEARCH BAR
+   ═══════════════════════════════════════════════ */
+.search-wrap {
+  position: relative; margin-bottom: 14px;
+}
+.search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); font-size: 14px; pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--sans); font-size: 13px;
+  padding: 8px 12px 8px 34px;
+  outline: none; transition: border-color .15s;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text3); }
+
+/* ═══════════════════════════════════════════════
+   PLAYBOOK GRID
+   ═══════════════════════════════════════════════ */
+.playbook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.playbook-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.playbook-card:hover { border-color: var(--accent); background: var(--accent-dim); }
+.playbook-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 3px rgba(79,142,247,.15);
+}
+.pb-name {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--accent); margin-bottom: 5px;
+  word-break: break-all;
+}
+.pb-desc { font-size: 12px; color: var(--text2); line-height: 1.4; }
+.pb-check {
+  float: right; margin-left: 8px;
+  color: var(--accent); font-size: 14px;
+  display: none;
+}
+.playbook-card.selected .pb-check { display: inline; }
+
+/* ═══════════════════════════════════════════════
+   FORMS
+   ═══════════════════════════════════════════════ */
+.form-row { display: grid; gap: 12px; margin-bottom: 14px; }
+.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label {
+  font-size: 12px; font-weight: 500; color: var(--text2);
+}
+.form-input, .form-select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--sans); font-size: 13px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  outline: none; transition: border-color .15s;
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-select { cursor: pointer; }
+option { background: var(--surface); }
+
+/* ═══════════════════════════════════════════════
+   HOST LIST (checkboxes)
+   ═══════════════════════════════════════════════ */
+.host-list { display: flex; flex-direction: column; gap: 6px; }
+.host-check {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer; transition: all .12s;
+  background: var(--surface2);
+}
+.host-check:hover { border-color: var(--border2); }
+.host-check input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; }
+.host-name { font-family: var(--mono); font-size: 12px; color: var(--text); flex: 1; }
+.host-ip { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.host-group-tag {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--accent-dim); color: var(--accent);
+  letter-spacing: .5px;
+}
+
+/* ═══════════════════════════════════════════════
+   DISTRO PICKER
+   ═══════════════════════════════════════════════ */
+.distro-grid {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.distro-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text2); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .12s;
+}
+.distro-btn:hover { border-color: var(--border2); color: var(--text); }
+.distro-btn.selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.distro-icon { font-size: 15px; }
+
+/* ═══════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  font-family: var(--sans); font-weight: 600; font-size: 13px;
+  border: none; border-radius: var(--radius);
+  cursor: pointer; transition: all .12s;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--accent); color: #fff;
+}
+.btn-primary:hover { filter: brightness(1.12); }
+.btn-danger {
+  background: transparent; border: 1px solid var(--red);
+  color: var(--red);
+}
+.btn-danger:hover { background: var(--red-dim); }
+.btn-ghost {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text2);
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* ═══════════════════════════════════════════════
+   LAUNCH BAR
+   ═══════════════════════════════════════════════ */
+#launchBar {
+  display: none;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════
+   LOG PANEL (right column)
+   ═══════════════════════════════════════════════ */
+.log-panel {
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+}
+.log-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-shrink: 0;
+}
+.log-header-title {
+  font-size: 12px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .5px;
+  display: flex; align-items: center; gap: 8px;
+}
+#logJobId { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.log-body {
+  flex: 1; overflow-y: auto;
+  padding: 12px 14px;
+  font-family: var(--mono); font-size: 11px;
+  line-height: 1.65; color: var(--text3);
+  white-space: pre-wrap; word-break: break-all;
+}
+.log-body .ok   { color: var(--green); }
+.log-body .fail { color: var(--red); }
+.log-body .warn { color: var(--yellow); }
+.log-body .head { color: var(--accent); font-weight: 500; }
+
+.log-placeholder {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; gap: 10px;
+  color: var(--text3); font-size: 12px; text-align: center;
+}
+.log-placeholder-icon { font-size: 28px; opacity: .4; }
+
+/* ═══════════════════════════════════════════════
+   JOBS LIST
+   ═══════════════════════════════════════════════ */
+.job-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .12s;
+  font-size: 13px;
+}
+.job-row:last-child { border-bottom: none; }
+.job-row:hover { background: var(--surface2); }
+.job-row.active-row { background: var(--accent-dim); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px; font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .5px; text-transform: uppercase; flex-shrink: 0;
+}
+.badge-running  { background: var(--accent-dim);  color: var(--accent); }
+.badge-success  { background: var(--green-dim);   color: var(--green); }
+.badge-failed   { background: var(--red-dim);     color: var(--red); }
+.badge-queued   { background: var(--yellow-dim);  color: var(--yellow); }
+
+.job-pb   { font-family: var(--mono); font-size: 12px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); flex-shrink: 0; }
+
+/* Info icon button */
+.info-btn {
+  width: 26px; height: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text3); font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .12s; flex-shrink: 0;
+  font-style: normal;
+}
+.info-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   JOB DETAIL MODAL
+   ═══════════════════════════════════════════════ */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.55);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 520px; max-width: calc(100vw - 40px);
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.modal-close {
+  width: 28px; height: 28px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text2); cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.modal-close:hover { border-color: var(--red); color: var(--red); }
+.modal-body { padding: 16px; overflow-y: auto; }
+.detail-row {
+  display: flex; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-key { width: 120px; flex-shrink: 0; color: var(--text2); font-weight: 500; }
+.detail-val { color: var(--text); font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.modal-log {
+  margin-top: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-family: var(--mono); font-size: 11px;
+  line-height: 1.6; color: var(--text3);
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 280px; overflow-y: auto;
+}
+.modal-log .ok   { color: var(--green); }
+.modal-log .fail { color: var(--red); }
+.modal-log .warn { color: var(--yellow); }
+.modal-log .head { color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   HOSTS TABLE
+   ═══════════════════════════════════════════════ */
+.hosts-table { width: 100%; border-collapse: collapse; }
+.hosts-table th {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.hosts-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.hosts-table tr:last-child td { border-bottom: none; }
+.hosts-table tr:hover td { background: var(--surface2); }
+.mono-cell { font-family: var(--mono); font-size: 12px; }
+
+/* ═══════════════════════════════════════════════
+   EMPTY / MISC
+   ═══════════════════════════════════════════════ */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text3); font-size: 13px;
+}
+.hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ HEADER ═══════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Bolt
+  </div>
+
+  <div class="header-right">
+    <span id="clock"></span>
+
+    <div class="status-pill">
+      <div class="status-dot" id="apiDot"></div>
+      <span id="apiStatus">Connecting</span>
+    </div>
+
+    <button class="theme-btn" id="themeBtn" title="Toggle theme" onclick="toggleTheme()">🌙</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════ LAYOUT ═══════════════════════════════ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div style="padding: 8px 0 4px">
+      <div class="sidebar-label">Navigation</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navTo('dashboard', this)">
+        <i class="nav-icon">⊞</i> Dashboard
+      </div>
+      <div class="nav-item" data-page="run" onclick="navTo('run', this)">
+        <i class="nav-icon">▶</i> Run Playbook
+      </div>
+      <div class="nav-item" data-page="jobs" onclick="navTo('jobs', this)">
+        <i class="nav-icon">☰</i> Jobs
+      </div>
+      <div class="nav-item" data-page="hosts" onclick="navTo('hosts', this)">
+        <i class="nav-icon">⬡</i> Hosts
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main>
+
+    <!-- ══════════ DASHBOARD PAGE ══════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">Quick-launch a playbook</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Playbooks</div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="dashSearch" placeholder="Search playbooks…" oninput="filterDashPlaybooks(this.value)" onfocus="showAllDashPlaybooks()"/>
+        </div>
+        <div class="playbook-grid" id="dashPlaybookGrid">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Inline run panel — appears when a playbook is clicked -->
+      <div id="dashRunPanel" style="display:none">
+        <div class="card">
+          <div class="card-title">
+            <span class="card-title-num">1</span>
+            Target Hosts
+          </div>
+          <div class="host-list" id="dashHostList"></div>
+        </div>
+
+        <!-- Distro picker -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-title-num">2</span>
+            Target OS / Distribution
+          </div>
+          <div class="distro-grid" id="dashDistroGrid">
+            <button class="distro-btn selected" data-distro="" onclick="selectDistro(this)">
+              <span class="distro-icon">🔍</span> Auto-detect
+            </button>
+            <button class="distro-btn" data-distro="ubuntu" onclick="selectDistro(this)">
+              <span class="distro-icon">🟠</span> Ubuntu
+            </button>
+            <button class="distro-btn" data-distro="debian" onclick="selectDistro(this)">
+              <span class="distro-icon">🌀</span> Debian
+            </button>
+            <button class="distro-btn" data-distro="centos" onclick="selectDistro(this)">
+              <span class="distro-icon">🔵</span> CentOS
+            </button>
+            <button class="distro-btn" data-distro="rhel" onclick="selectDistro(this)">
+              <span class="distro-icon">🔴</span> RHEL
+            </button>
+            <button class="distro-btn" data-distro="fedora" onclick="selectDistro(this)">
+              <span class="distro-icon">🎩</span> Fedora
+            </button>
+            <button class="distro-btn" data-distro="rocky" onclick="selectDistro(this)">
+              <span class="distro-icon">🪨</span> Rocky Linux
+            </button>
+            <button class="distro-btn" data-distro="almalinux" onclick="selectDistro(this)">
+              <span class="distro-icon">⭐</span> AlmaLinux
+            </button>
+          </div>
+        </div>
+
+        <div class="card" id="dashInputsCard" style="display:none">
+          <div class="card-title">
+            <span class="card-title-num">3</span>
+            Playbook Inputs
+          </div>
+          <div id="dashInputsForm"></div>
+        </div>
+
+        <div id="dashLaunchBar" style="display:flex; gap:10px; padding: 4px 0 8px">
+          <button class="btn btn-primary" onclick="launchDashJob()">▶&nbsp; Launch Job</button>
+          <button class="btn btn-ghost" onclick="cancelDashRun()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ RUN PAGE (full wizard) ══════════ -->
+    <div class="page" id="page-run">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Run Playbook</div>
+          <div class="page-subtitle">Step-by-step playbook execution</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="card-title-num">1</span> Select Playbook</div>
+        <div class="playbook-grid" id="playbookGrid">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+      <div class="card" id="step2" style="display:none">
+        <div class="card-title"><span class="card-title-num">2</span> Select Target Hosts</div>
+        <div class="host-list" id="hostList"></div>
+      </div>
+
+      <!-- Distro step -->
+      <div class="card" id="stepDistro" style="display:none">
+        <div class="card-title"><span class="card-title-num">3</span> Target OS / Distribution</div>
+        <div class="distro-grid" id="runDistroGrid">
+          <button class="distro-btn selected" data-distro="" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🔍</span> Auto-detect
+          </button>
+          <button class="distro-btn" data-distro="ubuntu" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🟠</span> Ubuntu
+          </button>
+          <button class="distro-btn" data-distro="debian" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🌀</span> Debian
+          </button>
+          <button class="distro-btn" data-distro="centos" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🔵</span> CentOS
+          </button>
+          <button class="distro-btn" data-distro="rhel" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🔴</span> RHEL
+          </button>
+          <button class="distro-btn" data-distro="fedora" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🎩</span> Fedora
+          </button>
+          <button class="distro-btn" data-distro="rocky" onclick="selectRunDistro(this)">
+            <span class="distro-icon">🪨</span> Rocky Linux
+          </button>
+          <button class="distro-btn" data-distro="almalinux" onclick="selectRunDistro(this)">
+            <span class="distro-icon">⭐</span> AlmaLinux
+          </button>
+        </div>
+      </div>
+
+      <div class="card" id="step3" style="display:none">
+        <div class="card-title"><span class="card-title-num">4</span> Playbook Inputs</div>
+        <div id="inputsForm"></div>
+      </div>
+
+      <div id="launchBar">
+        <button class="btn btn-primary" onclick="launchJob()">▶&nbsp; Launch Job</button>
+      </div>
+    </div>
+
+    <!-- ══════════ JOBS PAGE ══════════ -->
+    <div class="page" id="page-jobs">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Job History</div>
+          <div class="page-subtitle">Click a job to view its output</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="loadJobs()">↺ Refresh</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden">
+        <div id="jobsList"><div class="empty-state" style="padding:40px">No jobs yet.</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ HOSTS PAGE ══════════ -->
+    <div class="page" id="page-hosts">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Host Inventory</div>
+          <div class="page-subtitle">Manage target servers</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Add Host</div>
+        <div class="form-row cols-3">
+          <div class="form-group">
+            <label class="form-label">Hostname / FQDN *</label>
+            <input class="form-input" id="hName" placeholder="host1.example.com"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">IP / ansible_host *</label>
+            <input class="form-input" id="hIp" placeholder="192.168.1.10"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Group</label>
+            <input class="form-input" id="hGroup" placeholder="webservers"/>
+          </div>
+        </div>
+        <div class="form-row cols-3">
+          <div class="form-group">
+            <label class="form-label">SSH User</label>
+            <input class="form-input" id="hUser" value="root" placeholder="root"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SSH Password</label>
+            <input class="form-input" type="password" id="hPass" placeholder="Leave blank to use SSH key"/>
+            <span class="hint">If blank, Ansible uses the SSH key configured on the server.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SSH Key Path (optional)</label>
+            <input class="form-input" id="hKey" placeholder="/root/.ssh/id_rsa"/>
+            <span class="hint">Overrides password auth if provided.</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addHost()">+ Add Host</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden">
+        <table class="hosts-table">
+          <thead>
+            <tr>
+              <th>Hostname</th>
+              <th>IP / ansible_host</th>
+              <th>Group</th>
+              <th>User</th>
+              <th>Auth</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="hostsTableBody">
+            <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3)">No hosts registered.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ══════════ LOG PANEL ══════════ -->
+  <div class="log-panel">
+    <div class="log-header">
+      <span class="log-header-title">
+        Job Output
+        <span id="logJobId"></span>
+      </span>
+      <button class="btn btn-ghost btn-sm" id="logCopyBtn" style="display:none" onclick="copyLog()">Copy</button>
+    </div>
+    <div class="log-body" id="logBody">
+      <div class="log-placeholder">
+        <span class="log-placeholder-icon">📋</span>
+        Select a job to view its output
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ JOB DETAIL MODAL ══════════ -->
+<div class="modal-overlay" id="jobDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Job Details</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="jobDetailBody"></div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════ */
+const API = '/api';
+let selectedPlaybook    = null;  // run page
+let dashSelectedPlaybook = null; // dashboard
+let selectedDistro      = '';
+let runSelectedDistro   = '';
+let allHosts            = [];
+let logPollInterval     = null;
+let activeJobRow        = null;
+let allPlaybooks        = [];
+let currentLog          = '';
+
+/* ══════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════ */
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
+  localStorage.setItem('bolt-theme', isDark ? 'light' : 'dark');
+}
+(function initTheme() {
+  const saved = localStorage.getItem('bolt-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeBtn').textContent = saved === 'dark' ? '🌙' : '☀️';
+})();
+
+/* ══════════════════════════════════════════════════
+   CLOCK
+══════════════════════════════════════════════════ */
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+setInterval(updateClock, 1000); updateClock();
+
+/* ══════════════════════════════════════════════════
+   API HEALTH
+══════════════════════════════════════════════════ */
+async function checkHealth() {
+  const dot    = document.getElementById('apiDot');
+  const status = document.getElementById('apiStatus');
+  try {
+    const r = await fetch(`${API}/health`);
+    if (r.ok) {
+      dot.classList.remove('offline');
+      status.textContent = 'Online';
+    } else throw new Error();
+  } catch {
+    dot.classList.add('offline');
+    status.textContent = 'Offline';
+  }
+}
+setInterval(checkHealth, 5000); checkHealth();
+
+/* ══════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════ */
+function navTo(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  el.classList.add('active');
+  if (page === 'jobs')      loadJobs();
+  if (page === 'hosts')     loadHosts();
+  if (page === 'run')       loadPlaybooks();
+  if (page === 'dashboard') loadDashPlaybooks();
+}
+
+/* ══════════════════════════════════════════════════
+   DISTRO SELECTION
+══════════════════════════════════════════════════ */
+function selectDistro(btn) {
+  document.querySelectorAll('#dashDistroGrid .distro-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedDistro = btn.dataset.distro;
+}
+function selectRunDistro(btn) {
+  document.querySelectorAll('#runDistroGrid .distro-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  runSelectedDistro = btn.dataset.distro;
+}
+
+/* ══════════════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════════════ */
+async function loadDashPlaybooks() {
+  const res = await fetch(`${API}/playbooks`);
+  allPlaybooks = await res.json();
+  renderDashPlaybooks(allPlaybooks);
+}
+
+function renderDashPlaybooks(pbs) {
+  const grid = document.getElementById('dashPlaybookGrid');
+  if (!pbs.length) {
+    grid.innerHTML = '<div class="empty-state">No playbooks found.</div>';
+    return;
+  }
+  grid.innerHTML = pbs.map(p => `
+    <div class="playbook-card" onclick="dashSelectPlaybook('${esc(p.name)}', this)">
+      <span class="pb-check">✓</span>
+      <div class="pb-name">${esc(p.name)}</div>
+      <div class="pb-desc">${esc(p.description || 'No description')}</div>
+    </div>
+  `).join('');
+}
+
+function filterDashPlaybooks(q) {
+  const filtered = allPlaybooks.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) ||
+    (p.description || '').toLowerCase().includes(q.toLowerCase())
+  );
+  renderDashPlaybooks(filtered);
+}
+
+function showAllDashPlaybooks() {
+  renderDashPlaybooks(allPlaybooks);
+}
+
+async function dashSelectPlaybook(name, el) {
+  document.querySelectorAll('#dashPlaybookGrid .playbook-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  dashSelectedPlaybook = name;
+
+  // Load hosts
+  const res = await fetch(`${API}/hosts`);
+  allHosts = await res.json();
+  const hostList = document.getElementById('dashHostList');
+  hostList.innerHTML = allHosts.length
+    ? allHosts.map(h => `
+        <label class="host-check">
+          <input type="checkbox" value="${esc(h.name)}" checked/>
+          <span class="host-name">${esc(h.name)}</span>
+          <span class="host-ip">${esc(h.vars.ansible_host || '')}</span>
+          <span class="host-group-tag">${esc(h.group)}</span>
+        </label>`).join('')
+    : '<div class="empty-state" style="padding:12px">No hosts. Add hosts in the Hosts page.</div>';
+
+  // Load inputs
+  const pbRes = await fetch(`${API}/playbooks/${name}`);
+  const pb = await pbRes.json();
+  const inputsCard = document.getElementById('dashInputsCard');
+  if (pb.inputs && pb.inputs.length) {
+    buildInputForm(pb.inputs, 'dashInputsForm');
+    inputsCard.style.display = 'block';
+  } else {
+    inputsCard.style.display = 'none';
+  }
+
+  document.getElementById('dashRunPanel').style.display = 'block';
+  document.getElementById('dashRunPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelDashRun() {
+  document.querySelectorAll('#dashPlaybookGrid .playbook-card').forEach(c => c.classList.remove('selected'));
+  dashSelectedPlaybook = null;
+  document.getElementById('dashRunPanel').style.display = 'none';
+}
+
+async function launchDashJob() {
+  if (!dashSelectedPlaybook) return;
+  const hosts = [...document.querySelectorAll('#dashHostList input:checked')].map(c => c.value);
+  if (!hosts.length) return alert('Select at least one host.');
+  const extra_vars = collectInputs('dashInputsForm');
+  const res = await fetch(`${API}/jobs`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ playbook: dashSelectedPlaybook, hosts, extra_vars, distro: selectedDistro })
+  });
+  const job = await res.json();
+  cancelDashRun();
+  navTo('jobs', document.querySelector('[data-page="jobs"]'));
+  setTimeout(() => viewJobLog(job.id), 300);
+}
+
+/* ══════════════════════════════════════════════════
+   RUN PAGE
+══════════════════════════════════════════════════ */
+async function loadPlaybooks() {
+  const res = await fetch(`${API}/playbooks`);
+  const pbs = await res.json();
+  const grid = document.getElementById('playbookGrid');
+  if (!pbs.length) {
+    grid.innerHTML = '<div class="empty-state">No playbooks found.</div>';
+    return;
+  }
+  grid.innerHTML = pbs.map(p => `
+    <div class="playbook-card" onclick="selectPlaybook('${esc(p.name)}', this)">
+      <span class="pb-check">✓</span>
+      <div class="pb-name">${esc(p.name)}</div>
+      <div class="pb-desc">${esc(p.description || 'No description')}</div>
+    </div>
+  `).join('');
+}
+
+async function selectPlaybook(name, el) {
+  document.querySelectorAll('#playbookGrid .playbook-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPlaybook = name;
+
+  const res = await fetch(`${API}/hosts`);
+  allHosts = await res.json();
+  const hostList = document.getElementById('hostList');
+  hostList.innerHTML = allHosts.length
+    ? allHosts.map(h => `
+        <label class="host-check">
+          <input type="checkbox" value="${esc(h.name)}" checked/>
+          <span class="host-name">${esc(h.name)}</span>
+          <span class="host-ip">${esc(h.vars.ansible_host || '')}</span>
+          <span class="host-group-tag">${esc(h.group)}</span>
+        </label>`).join('')
+    : '<div class="empty-state" style="padding:12px">No hosts. Add hosts in the Hosts page.</div>';
+
+  document.getElementById('step2').style.display = 'block';
+  document.getElementById('stepDistro').style.display = 'block';
+
+  const pbRes = await fetch(`${API}/playbooks/${name}`);
+  const pb = await pbRes.json();
+  const step3 = document.getElementById('step3');
+  if (pb.inputs && pb.inputs.length) {
+    buildInputForm(pb.inputs, 'inputsForm');
+    step3.style.display = 'block';
+  } else {
+    step3.style.display = 'none';
+  }
+  document.getElementById('launchBar').style.display = 'block';
+}
+
+function buildInputForm(inputs, containerId) {
+  const form = document.getElementById(containerId);
+  if (!inputs.length) { form.innerHTML = ''; return; }
+  form.innerHTML = inputs.map(inp => {
+    const id = `input_${containerId}_${inp.name}`;
+    if (inp.type === 'select') {
+      return `<div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">${esc(inp.label || inp.name)}</label>
+        <select class="form-select" id="${id}">
+          ${inp.options.map(o => `<option value="${esc(o)}"${o===inp.default?' selected':''}>${esc(o)}</option>`).join('')}
+        </select>
+      </div>`;
+    }
+    return `<div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">${esc(inp.label || inp.name)}</label>
+      <input class="form-input" id="${id}" placeholder="${esc(inp.placeholder || '')}" value="${esc(inp.default || '')}"/>
+    </div>`;
+  }).join('');
+}
+
+function collectInputs(containerId) {
+  const vars = {};
+  document.querySelectorAll(`#${containerId} [id^="input_"]`).forEach(el => {
+    const key = el.id.replace(`input_${containerId}_`, '');
+    vars[key] = el.value;
+  });
+  return vars;
+}
+
+async function launchJob() {
+  if (!selectedPlaybook) return alert('Select a playbook first.');
+  const hosts = [...document.querySelectorAll('#hostList input:checked')].map(c => c.value);
+  if (!hosts.length) return alert('Select at least one host.');
+  const extra_vars = collectInputs('inputsForm');
+  const res = await fetch(`${API}/jobs`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ playbook: selectedPlaybook, hosts, extra_vars, distro: runSelectedDistro })
+  });
+  const job = await res.json();
+  navTo('jobs', document.querySelector('[data-page="jobs"]'));
+  setTimeout(() => viewJobLog(job.id), 300);
+}
+
+/* ══════════════════════════════════════════════════
+   JOBS
+══════════════════════════════════════════════════ */
+async function loadJobs() {
+  const res = await fetch(`${API}/jobs`);
+  const jobs = await res.json();
+  const list = document.getElementById('jobsList');
+  if (!jobs.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:40px">No jobs yet.</div>';
+    return;
+  }
+  list.innerHTML = jobs.map(j => `
+    <div class="job-row" id="jobrow-${j.id}" onclick="viewJobLog('${j.id}')">
+      <span class="badge badge-${j.status}">${j.status}</span>
+      <span class="job-pb">${esc(j.playbook)}</span>
+      <span class="job-meta">${(j.hosts||[]).length} host${(j.hosts||[]).length===1?'':'s'}</span>
+      <span class="job-meta">${j.created_at.slice(0,19)}</span>
+      <button class="info-btn" title="Job details" onclick="event.stopPropagation(); showJobDetail('${j.id}')">ℹ</button>
+    </div>
+  `).join('');
+}
+
+let logJobId = null;
+async function viewJobLog(jobId) {
+  if (logPollInterval) clearInterval(logPollInterval);
+  if (activeJobRow) activeJobRow.classList.remove('active-row');
+  activeJobRow = document.getElementById(`jobrow-${jobId}`);
+  if (activeJobRow) activeJobRow.classList.add('active-row');
+
+  logJobId = jobId;
+  document.getElementById('logJobId').textContent = `#${jobId}`;
+  document.getElementById('logCopyBtn').style.display = 'inline-flex';
+
+  async function refresh() {
+    const [jobRes, logRes] = await Promise.all([
+      fetch(`${API}/jobs/${jobId}`),
+      fetch(`${API}/jobs/${jobId}/log`)
+    ]);
+    const job = await jobRes.json();
+    currentLog = await logRes.text();
+    document.getElementById('logBody').innerHTML = colorizeLog(currentLog);
+    document.getElementById('logBody').scrollTop = 99999;
+
+    const row = document.getElementById(`jobrow-${jobId}`);
+    if (row) {
+      const badge = row.querySelector('.badge');
+      if (badge) { badge.className = `badge badge-${job.status}`; badge.textContent = job.status; }
+    }
+    if (job.status !== 'running' && job.status !== 'queued') clearInterval(logPollInterval);
+  }
+  await refresh();
+  logPollInterval = setInterval(refresh, 2000);
+}
+
+function copyLog() {
+  navigator.clipboard.writeText(currentLog).catch(() => {});
+}
+
+/* ══════════════════════════════════════════════════
+   JOB DETAIL MODAL
+══════════════════════════════════════════════════ */
+async function showJobDetail(jobId) {
+  const [jobRes, logRes] = await Promise.all([
+    fetch(`${API}/jobs/${jobId}`),
+    fetch(`${API}/jobs/${jobId}/log`)
+  ]);
+  const job = await jobRes.json();
+  const log = await logRes.text();
+
+  const rows = [
+    ['Job ID',    job.id],
+    ['Playbook',  job.playbook],
+    ['Hosts',     (job.hosts || []).join(', ') || '—'],
+    ['Distro',    job.distro || 'auto-detect'],
+    ['Status',    `<span class="badge badge-${job.status}">${job.status}</span>`],
+    ['Created',   job.created_at ? job.created_at.replace('T',' ').slice(0,19)+' UTC' : '—'],
+    ['Started',   job.started_at ? job.started_at.replace('T',' ').slice(0,19)+' UTC' : '—'],
+    ['Finished',  job.finished_at ? job.finished_at.replace('T',' ').slice(0,19)+' UTC' : '—'],
+    ['Exit Code', job.return_code !== undefined ? job.return_code : '—'],
+    ['Extra Vars',JSON.stringify(job.extra_vars || {})],
+  ];
+
+  document.getElementById('jobDetailBody').innerHTML = `
+    ${rows.map(([k,v]) => `
+      <div class="detail-row">
+        <div class="detail-key">${k}</div>
+        <div class="detail-val">${v}</div>
+      </div>`).join('')}
+    <div style="margin-top:12px; font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px">Full Log</div>
+    <div class="modal-log">${colorizeLog(log)}</div>
+  `;
+  document.getElementById('jobDetailModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('jobDetailModal').classList.remove('open');
+}
+document.getElementById('jobDetailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* ══════════════════════════════════════════════════
+   HOSTS
+══════════════════════════════════════════════════ */
+async function loadHosts() {
+  const res = await fetch(`${API}/hosts`);
+  const hosts = await res.json();
+  const tbody = document.getElementById('hostsTableBody');
+  if (!hosts.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3)">No hosts registered.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = hosts.map(h => `
+    <tr>
+      <td class="mono-cell" style="color:var(--accent)">${esc(h.name)}</td>
+      <td class="mono-cell" style="color:var(--text2)">${esc(h.vars.ansible_host || '—')}</td>
+      <td><span class="badge badge-queued">${esc(h.group)}</span></td>
+      <td class="mono-cell">${esc(h.vars.ansible_user || 'root')}</td>
+      <td class="mono-cell" style="color:var(--text3)">
+        ${h.vars.ansible_ssh_private_key_file ? '🔑 Key' : (h.vars.ansible_ssh_pass ? '🔒 Password' : '—')}
+      </td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteHost('${esc(h.name)}')">Remove</button></td>
+    </tr>
+  `).join('');
+}
+
+async function addHost() {
+  const name  = document.getElementById('hName').value.trim();
+  const ip    = document.getElementById('hIp').value.trim();
+  const group = document.getElementById('hGroup').value.trim() || 'ungrouped';
+  const user  = document.getElementById('hUser').value.trim() || 'root';
+  const pass  = document.getElementById('hPass').value;
+  const key   = document.getElementById('hKey').value.trim();
+  if (!name) return alert('Hostname is required.');
+
+  await fetch(`${API}/hosts`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name, ansible_host: ip || name, group, ansible_user: user,
+                           ansible_ssh_pass: pass, ansible_ssh_private_key_file: key })
+  });
+  ['hName','hIp','hGroup','hPass','hKey'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('hUser').value = 'root';
+  loadHosts();
+}
+
+async function deleteHost(name) {
+  if (!confirm(`Remove host "${name}"?`)) return;
+  await fetch(`${API}/hosts/${name}`, { method: 'DELETE' });
+  loadHosts();
+}
+
+/* ══════════════════════════════════════════════════
+   LOG COLORIZER
+══════════════════════════════════════════════════ */
+function colorizeLog(text) {
+  return text.split('\n').map(line => {
+    if (/\bok\b/i.test(line))           return `<span class="ok">${escHtml(line)}</span>`;
+    if (/FAILED|ERROR/i.test(line))     return `<span class="fail">${escHtml(line)}</span>`;
+    if (/^PLAY |^TASK /i.test(line))    return `<span class="head">${escHtml(line)}</span>`;
+    if (/warning|warn/i.test(line))     return `<span class="warn">${escHtml(line)}</span>`;
+    return escHtml(line);
+  }).join('\n');
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function esc(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+/* ══════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════ */
+loadDashPlaybooks();
+setInterval(async () => {
+  if (document.getElementById('page-jobs').classList.contains('active')) loadJobs();
+}, 5000);
+</script>
+</body>
+</html>

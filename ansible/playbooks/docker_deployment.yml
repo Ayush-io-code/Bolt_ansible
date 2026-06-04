@@ -1,0 +1,40 @@
+---
+- name: Deploy Docker Container
+  hosts: all
+  become: yes
+
+  pre_tasks:
+    - name: Validate inputs
+      assert:
+        that:
+          - image_name | length > 0
+          - container_name | length > 0
+          - port_mapping | length > 0
+
+  tasks:
+    - name: Install collection if missing
+      command: ansible-galaxy collection install community.docker
+      delegate_to: localhost
+      changed_when: false
+
+    - name: Create deployment log
+      lineinfile:
+        path: /tmp/docker_deployment.log
+        create: yes
+        line: "Deploying {{ container_name }}"
+
+    - community.docker.docker_image:
+        name: "{{ image_name }}"
+        tag: "{{ image_tag }}"
+        source: pull
+
+    - community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image_name }}:{{ image_tag }}"
+        ports:
+          - "{{ port_mapping }}"
+        state: started
+
+    - copy:
+        dest: /tmp/docker_change_report.txt
+        content: "Container {{ container_name }} deployed successfully."

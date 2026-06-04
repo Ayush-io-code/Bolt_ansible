@@ -1,0 +1,4 @@
+{
+  "description": "Run disk, memory, and uptime checks on target hosts",
+  "inputs": []
+}

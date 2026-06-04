@@ -1,0 +1,27 @@
+{
+  "description": "Enterprise Terraform Execution",
+  "inputs": [
+    {
+      "name": "workspace",
+      "type": "text"
+    },
+    {
+      "name": "action",
+      "type": "select",
+      "options": [
+        "plan",
+        "apply",
+        "destroy"
+      ]
+    },
+    {
+      "name": "destroy_approved",
+      "type": "select",
+      "options": [
+        "yes",
+        "no"
+      ],
+      "default": "no"
+    }
+  ]
+}

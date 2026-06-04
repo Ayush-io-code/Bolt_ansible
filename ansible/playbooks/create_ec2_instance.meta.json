@@ -1,0 +1,21 @@
+{
+  "description": "Enterprise EC2 Provisioning",
+  "inputs": [
+    {
+      "name": "instance_name",
+      "type": "text"
+    },
+    {
+      "name": "instance_type",
+      "type": "text"
+    },
+    {
+      "name": "ami_id",
+      "type": "text"
+    },
+    {
+      "name": "region",
+      "type": "text"
+    }
+  ]
+}

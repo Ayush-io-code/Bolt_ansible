@@ -1,0 +1,116 @@
+---
+- name: Install Apache HTTPD
+  hosts: all
+  become: yes
+
+  vars:
+    apache_version: "latest"
+    install_path: "/opt"
+
+  tasks:
+
+    # ── Gather OS facts ───────────────────────────────────────────────────────
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── Validate the path user provided ──────────────────────────────────────
+    - name: Check if install_path exists as a file (not a directory)
+      stat:
+        path: "{{ install_path }}"
+      register: path_stat
+
+    - name: Fail if path exists as a regular file
+      fail:
+        msg: >
+          '{{ install_path }}' already exists as a FILE not a directory.
+          Please choose a different path.
+      when:
+        - path_stat.stat.exists
+        - not path_stat.stat.isdir
+
+    # ── Create the directory ──────────────────────────────────────────────────
+    - name: Create install directory at user-specified path
+      file:
+        path: "{{ install_path }}/apache"
+        state: directory
+        mode: '0755'
+
+    # ── Debian/Ubuntu ─────────────────────────────────────────────────────────
+    - name: Update apt cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install Apache latest (Debian/Ubuntu)
+      apt:
+        name: apache2
+        state: latest
+      when:
+        - ansible_os_family == "Debian"
+        - apache_version == "latest"
+
+    - name: Install Apache pinned version (Debian/Ubuntu)
+      apt:
+        name: "apache2={{ apache_version }}"
+        state: present
+      when:
+        - ansible_os_family == "Debian"
+        - apache_version != "latest"
+
+    - name: Ensure Apache started (Debian/Ubuntu)
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+      when: ansible_os_family == "Debian"
+
+    # ── RHEL/CentOS/Fedora ────────────────────────────────────────────────────
+    - name: Install Apache (RHEL/CentOS/Fedora)
+      package:
+        name: httpd
+        state: "{{ 'latest' if apache_version == 'latest' else 'present' }}"
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure Apache started (RHEL/CentOS/Fedora)
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    # ── Write deploy info ─────────────────────────────────────────────────────
+    - name: Write deployment info
+      copy:
+        content: |
+          Deployed by Bolt
+          Playbook : Install_Apache_Httpd_CSM
+          Host     : {{ inventory_hostname }}
+          Distro   : {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Path     : {{ install_path }}/apache
+          Date     : {{ ansible_date_time.iso8601 }}
+        dest: "{{ install_path }}/apache/deploy.info"
+        mode: '0644'
+
+    # ── Verify ────────────────────────────────────────────────────────────────
+    - name: Get Apache version (Debian)
+      command: apache2 -v
+      register: apache_ver_deb
+      changed_when: false
+      when: ansible_os_family == "Debian"
+      ignore_errors: yes
+
+    - name: Get Apache version (RHEL)
+      command: httpd -v
+      register: apache_ver_rhel
+      changed_when: false
+      when: ansible_os_family == "RedHat"
+      ignore_errors: yes
+
+    - name: Print summary
+      debug:
+        msg:
+          - "Distro  : {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Version : {{ (apache_ver_deb.stdout | default(apache_ver_rhel.stdout | default('unknown'))) }}"
+          - "Path    : {{ install_path }}/apache"

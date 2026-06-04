@@ -1,0 +1,19 @@
+{
+  "description": "Install and configure Apache HTTPD web server",
+  "inputs": [
+    {
+      "name": "apache_version",
+      "label": "Apache Version",
+      "type": "select",
+      "options": ["latest", "2.4.*"],
+      "default": "latest"
+    },
+    {
+      "name": "install_path",
+      "label": "Install Path",
+      "type": "text",
+      "placeholder": "/opt",
+      "default": "/opt"
+    }
+  ]
+}

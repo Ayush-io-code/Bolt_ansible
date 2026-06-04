@@ -1,0 +1,21 @@
+{
+  "description": "Enterprise Kubernetes Deployment",
+  "inputs": [
+    {
+      "name": "namespace",
+      "type": "text"
+    },
+    {
+      "name": "deployment_name",
+      "type": "text"
+    },
+    {
+      "name": "image",
+      "type": "text"
+    },
+    {
+      "name": "replicas",
+      "type": "number"
+    }
+  ]
+}

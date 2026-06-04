@@ -1,0 +1,29 @@
+---
+- name: Check Disk Usage
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Get disk usage
+      command: df -h
+      register: disk_output
+
+    - name: Print disk usage
+      debug:
+        msg: "{{ disk_output.stdout_lines }}"
+
+    - name: Get memory usage
+      command: free -h
+      register: mem_output
+
+    - name: Print memory usage
+      debug:
+        msg: "{{ mem_output.stdout_lines }}"
+
+    - name: Get uptime
+      command: uptime
+      register: uptime_output
+
+    - name: Print uptime
+      debug:
+        msg: "{{ uptime_output.stdout }}"
