@@ -70,8 +70,11 @@ jobs:
 
       - name: Check nginx config syntax
         run: |
+          # Replace proxy_pass with localhost so upstream resolves in CI
+          sed 's|proxy_pass http://bolt-backend:5000;|proxy_pass http://127.0.0.1:5000;|g' \
+            frontend/nginx.conf > /tmp/test-nginx.conf
           docker run --rm \
-            -v "${{ github.workspace }}/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "/tmp/test-nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
             nginx:alpine nginx -t
           echo "✅ Nginx config valid"
 
