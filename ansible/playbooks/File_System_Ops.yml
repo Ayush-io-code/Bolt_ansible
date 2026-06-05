@@ -1,0 +1,649 @@
+---
+- name: File System Operations
+  hosts: all
+  become: yes
+
+  vars:
+    operation: "list_dir"
+
+    # TAR
+    tar_source_path: ""
+    tar_dest_path: ""
+    tar_remove_original: "no"
+    tar_compression: "gz"
+
+    # UNTAR
+    untar_archive_path: ""
+    untar_dest_path: ""
+
+    # COPY
+    copy_src: ""
+    copy_dest: ""
+    copy_overwrite: "yes"
+
+    # PERMISSIONS
+    perm_path: ""
+    perm_mode: "0755"
+    perm_recursive: "no"
+
+    # DIRECTORY
+    dir_path: ""
+    dir_mode: "0755"
+
+    # OWNERSHIP
+    own_path: ""
+    own_user: ""
+    own_group: ""
+    own_recursive: "no"
+
+    # ENV FILE
+    env_file_path: ""
+    env_key: ""
+    env_old_value: ""
+    env_new_value: ""
+
+    # REMOVE
+    remove_path: ""
+    remove_type: "file"
+
+    # KILL PID
+    kill_pid: ""
+    kill_signal: "15"
+
+    # FIND
+    find_path: ""
+    find_pattern: "*"
+    find_older_than_days: "0"
+
+    # SYMLINK
+    symlink_src: ""
+    symlink_dest: ""
+
+    # DISK USAGE
+    du_path: "/"
+
+    # LIST DIR
+    list_path: "/"
+
+    # FILE INFO
+    info_path: ""
+
+    # MOVE / RENAME
+    move_src: ""
+    move_dest: ""
+
+    # TOUCH
+    touch_path: ""
+
+    # GREP / SEARCH IN FILE
+    grep_pattern: ""
+    grep_file: ""
+
+  tasks:
+
+    - name: Gather facts
+      setup:
+        filter: ansible_distribution*
+
+    # ══════════════════════════════════════════════════════
+    #  1. TAR A FOLDER
+    # ══════════════════════════════════════════════════════
+    - name: "[TAR] Validate source path exists"
+      stat:
+        path: "{{ tar_source_path }}"
+      register: tar_src_stat
+      when: operation == "tar"
+
+    - name: "[TAR] Fail if source does not exist"
+      fail:
+        msg: "Source path '{{ tar_source_path }}' does not exist."
+      when:
+        - operation == "tar"
+        - not tar_src_stat.stat.exists
+
+    - name: "[TAR] Create tar archive (gz)"
+      command: >
+        tar -czf {{ tar_dest_path }} -C {{ tar_source_path | dirname }} {{ tar_source_path | basename }}
+      when:
+        - operation == "tar"
+        - tar_compression == "gz"
+
+    - name: "[TAR] Create tar archive (bz2)"
+      command: >
+        tar -cjf {{ tar_dest_path }} -C {{ tar_source_path | dirname }} {{ tar_source_path | basename }}
+      when:
+        - operation == "tar"
+        - tar_compression == "bz2"
+
+    - name: "[TAR] Create tar archive (xz)"
+      command: >
+        tar -cJf {{ tar_dest_path }} -C {{ tar_source_path | dirname }} {{ tar_source_path | basename }}
+      when:
+        - operation == "tar"
+        - tar_compression == "xz"
+
+    - name: "[TAR] Remove original folder after archiving"
+      file:
+        path: "{{ tar_source_path }}"
+        state: absent
+      when:
+        - operation == "tar"
+        - tar_remove_original == "yes"
+
+    - name: "[TAR] Summary"
+      debug:
+        msg:
+          - "Archived  : {{ tar_source_path }}"
+          - "Output    : {{ tar_dest_path }}"
+          - "Compress  : {{ tar_compression }}"
+          - "Removed   : {{ tar_remove_original }}"
+      when: operation == "tar"
+
+    # ══════════════════════════════════════════════════════
+    #  2. UNTAR AN ARCHIVE
+    # ══════════════════════════════════════════════════════
+    - name: "[UNTAR] Validate archive exists"
+      stat:
+        path: "{{ untar_archive_path }}"
+      register: untar_stat
+      when: operation == "untar"
+
+    - name: "[UNTAR] Fail if archive not found"
+      fail:
+        msg: "Archive '{{ untar_archive_path }}' does not exist."
+      when:
+        - operation == "untar"
+        - not untar_stat.stat.exists
+
+    - name: "[UNTAR] Create destination directory"
+      file:
+        path: "{{ untar_dest_path }}"
+        state: directory
+        mode: '0755'
+      when:
+        - operation == "untar"
+        - untar_dest_path != ""
+
+    - name: "[UNTAR] Extract archive"
+      unarchive:
+        src: "{{ untar_archive_path }}"
+        dest: "{{ untar_dest_path if untar_dest_path != '' else (untar_archive_path | dirname) }}"
+        remote_src: yes
+      when: operation == "untar"
+
+    - name: "[UNTAR] Summary"
+      debug:
+        msg:
+          - "Archive  : {{ untar_archive_path }}"
+          - "Dest     : {{ untar_dest_path if untar_dest_path != '' else (untar_archive_path | dirname) }}"
+      when: operation == "untar"
+
+    # ══════════════════════════════════════════════════════
+    #  3. COPY FILE / FOLDER
+    # ══════════════════════════════════════════════════════
+    - name: "[COPY] Validate source exists"
+      stat:
+        path: "{{ copy_src }}"
+      register: copy_src_stat
+      when: operation == "copy"
+
+    - name: "[COPY] Fail if source not found"
+      fail:
+        msg: "Source '{{ copy_src }}' does not exist."
+      when:
+        - operation == "copy"
+        - not copy_src_stat.stat.exists
+
+    - name: "[COPY] Copy file"
+      copy:
+        src: "{{ copy_src }}"
+        dest: "{{ copy_dest }}"
+        remote_src: yes
+        force: "{{ copy_overwrite }}"
+      when:
+        - operation == "copy"
+        - copy_src_stat.stat.isreg | default(false)
+
+    - name: "[COPY] Copy directory recursively"
+      command: cp -r{{ ' ' if copy_overwrite == 'yes' else 'n ' }}{{ copy_src }} {{ copy_dest }}
+      when:
+        - operation == "copy"
+        - copy_src_stat.stat.isdir | default(false)
+
+    - name: "[COPY] Summary"
+      debug:
+        msg:
+          - "Copied from : {{ copy_src }}"
+          - "Copied to   : {{ copy_dest }}"
+          - "Overwrite   : {{ copy_overwrite }}"
+      when: operation == "copy"
+
+    # ══════════════════════════════════════════════════════
+    #  4. CHANGE PERMISSIONS
+    # ══════════════════════════════════════════════════════
+    - name: "[CHMOD] Validate path exists"
+      stat:
+        path: "{{ perm_path }}"
+      register: perm_stat
+      when: operation == "chmod"
+
+    - name: "[CHMOD] Fail if path not found"
+      fail:
+        msg: "Path '{{ perm_path }}' does not exist."
+      when:
+        - operation == "chmod"
+        - not perm_stat.stat.exists
+
+    - name: "[CHMOD] Change permissions (non-recursive)"
+      file:
+        path: "{{ perm_path }}"
+        mode: "{{ perm_mode }}"
+      when:
+        - operation == "chmod"
+        - perm_recursive == "no"
+
+    - name: "[CHMOD] Change permissions (recursive)"
+      command: chmod -R {{ perm_mode }} {{ perm_path }}
+      when:
+        - operation == "chmod"
+        - perm_recursive == "yes"
+
+    - name: "[CHMOD] Summary"
+      debug:
+        msg:
+          - "Path      : {{ perm_path }}"
+          - "Mode      : {{ perm_mode }}"
+          - "Recursive : {{ perm_recursive }}"
+      when: operation == "chmod"
+
+    # ══════════════════════════════════════════════════════
+    #  5. CREATE DIRECTORY
+    # ══════════════════════════════════════════════════════
+    - name: "[MKDIR] Create directory"
+      file:
+        path: "{{ dir_path }}"
+        state: directory
+        mode: "{{ dir_mode }}"
+        recurse: yes
+      when: operation == "mkdir"
+
+    - name: "[MKDIR] Summary"
+      debug:
+        msg:
+          - "Directory created : {{ dir_path }}"
+          - "Mode              : {{ dir_mode }}"
+      when: operation == "mkdir"
+
+    # ══════════════════════════════════════════════════════
+    #  6. CHANGE UID / GID (CHOWN)
+    # ══════════════════════════════════════════════════════
+    - name: "[CHOWN] Validate path"
+      stat:
+        path: "{{ own_path }}"
+      register: own_stat
+      when: operation == "chown"
+
+    - name: "[CHOWN] Fail if path not found"
+      fail:
+        msg: "Path '{{ own_path }}' does not exist."
+      when:
+        - operation == "chown"
+        - not own_stat.stat.exists
+
+    - name: "[CHOWN] Change ownership (non-recursive)"
+      file:
+        path: "{{ own_path }}"
+        owner: "{{ own_user if own_user != '' else omit }}"
+        group: "{{ own_group if own_group != '' else omit }}"
+      when:
+        - operation == "chown"
+        - own_recursive == "no"
+
+    - name: "[CHOWN] Change ownership (recursive)"
+      command: >
+        chown -R {{ own_user if own_user != '' else '' }}{{ ':' + own_group if own_group != '' else '' }} {{ own_path }}
+      when:
+        - operation == "chown"
+        - own_recursive == "yes"
+
+    - name: "[CHOWN] Show new ownership"
+      command: ls -ld {{ own_path }}
+      register: chown_result
+      changed_when: false
+      when: operation == "chown"
+
+    - name: "[CHOWN] Summary"
+      debug:
+        msg:
+          - "Path       : {{ own_path }}"
+          - "New owner  : {{ own_user if own_user != '' else '(unchanged)' }}"
+          - "New group  : {{ own_group if own_group != '' else '(unchanged)' }}"
+          - "Recursive  : {{ own_recursive }}"
+          - "Result     : {{ chown_result.stdout }}"
+      when: operation == "chown"
+
+    # ══════════════════════════════════════════════════════
+    #  7. ENV FILE UPDATE
+    # ══════════════════════════════════════════════════════
+    - name: "[ENV] Validate env file exists"
+      stat:
+        path: "{{ env_file_path }}"
+      register: env_stat
+      when: operation == "env_update"
+
+    - name: "[ENV] Fail if env file not found"
+      fail:
+        msg: "Env file '{{ env_file_path }}' does not exist."
+      when:
+        - operation == "env_update"
+        - not env_stat.stat.exists
+
+    - name: "[ENV] Read current env file"
+      slurp:
+        src: "{{ env_file_path }}"
+      register: env_content
+      when: operation == "env_update"
+
+    - name: "[ENV] Show current value of key"
+      shell: "grep -E '^{{ env_key }}=' {{ env_file_path }} || echo '{{ env_key }} not found in file'"
+      register: env_current
+      changed_when: false
+      when: operation == "env_update"
+
+    - name: "[ENV] Update key if old value matches"
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^{{ env_key }}={{ env_old_value }}$"
+        line: "{{ env_key }}={{ env_new_value }}"
+        backup: yes
+      when:
+        - operation == "env_update"
+        - env_old_value != ""
+
+    - name: "[ENV] Update key (any existing value)"
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^{{ env_key }}=.*$"
+        line: "{{ env_key }}={{ env_new_value }}"
+        backup: yes
+      when:
+        - operation == "env_update"
+        - env_old_value == ""
+
+    - name: "[ENV] Add key if not present"
+      lineinfile:
+        path: "{{ env_file_path }}"
+        line: "{{ env_key }}={{ env_new_value }}"
+        create: yes
+      when: operation == "env_update"
+
+    - name: "[ENV] Show updated value"
+      shell: "grep -E '^{{ env_key }}=' {{ env_file_path }}"
+      register: env_updated
+      changed_when: false
+      when: operation == "env_update"
+
+    - name: "[ENV] Summary"
+      debug:
+        msg:
+          - "File    : {{ env_file_path }}"
+          - "Key     : {{ env_key }}"
+          - "Before  : {{ env_current.stdout }}"
+          - "After   : {{ env_updated.stdout }}"
+      when: operation == "env_update"
+
+    # ══════════════════════════════════════════════════════
+    #  8. REMOVE FILE OR FOLDER
+    # ══════════════════════════════════════════════════════
+    - name: "[REMOVE] Check path exists"
+      stat:
+        path: "{{ remove_path }}"
+      register: remove_stat
+      when: operation == "remove"
+
+    - name: "[REMOVE] Warn if path not found"
+      debug:
+        msg: "Warning: Path '{{ remove_path }}' does not exist. Nothing to remove."
+      when:
+        - operation == "remove"
+        - not remove_stat.stat.exists
+
+    - name: "[REMOVE] Delete file"
+      file:
+        path: "{{ remove_path }}"
+        state: absent
+      when:
+        - operation == "remove"
+        - remove_stat.stat.exists
+
+    - name: "[REMOVE] Summary"
+      debug:
+        msg: "Removed : {{ remove_path }}"
+      when:
+        - operation == "remove"
+        - remove_stat.stat.exists
+
+    # ══════════════════════════════════════════════════════
+    #  9. KILL A PROCESS BY PID
+    # ══════════════════════════════════════════════════════
+    - name: "[KILL] Check process exists"
+      shell: "ps -p {{ kill_pid }} -o pid,user,cmd --no-headers 2>/dev/null || echo 'NOT_FOUND'"
+      register: kill_check
+      changed_when: false
+      when: operation == "kill_pid"
+
+    - name: "[KILL] Show process info"
+      debug:
+        msg: "Process found: {{ kill_check.stdout }}"
+      when:
+        - operation == "kill_pid"
+        - "'NOT_FOUND' not in kill_check.stdout"
+
+    - name: "[KILL] Fail if process not found"
+      fail:
+        msg: "No process with PID {{ kill_pid }} found."
+      when:
+        - operation == "kill_pid"
+        - "'NOT_FOUND' in kill_check.stdout"
+
+    - name: "[KILL] Send signal to process"
+      command: kill -{{ kill_signal }} {{ kill_pid }}
+      when:
+        - operation == "kill_pid"
+        - "'NOT_FOUND' not in kill_check.stdout"
+
+    - name: "[KILL] Summary"
+      debug:
+        msg:
+          - "PID    : {{ kill_pid }}"
+          - "Signal : {{ kill_signal }} (15=TERM, 9=KILL, 1=HUP, 2=INT)"
+          - "Was    : {{ kill_check.stdout }}"
+      when:
+        - operation == "kill_pid"
+        - "'NOT_FOUND' not in kill_check.stdout"
+
+    # ══════════════════════════════════════════════════════
+    #  10. FIND FILES
+    # ══════════════════════════════════════════════════════
+    - name: "[FIND] Search for files"
+      find:
+        paths: "{{ find_path }}"
+        patterns: "{{ find_pattern }}"
+        recurse: yes
+        age: "{{ find_older_than_days + 'd' if find_older_than_days != '0' else omit }}"
+      register: found_files
+      when: operation == "find"
+
+    - name: "[FIND] Print results"
+      debug:
+        msg: "{{ found_files.files | map(attribute='path') | list }}"
+      when: operation == "find"
+
+    - name: "[FIND] Summary"
+      debug:
+        msg:
+          - "Search path : {{ find_path }}"
+          - "Pattern     : {{ find_pattern }}"
+          - "Files found : {{ found_files.matched }}"
+          - "Older than  : {{ find_older_than_days + ' days' if find_older_than_days != '0' else 'any age' }}"
+      when: operation == "find"
+
+    # ══════════════════════════════════════════════════════
+    #  11. CREATE SYMLINK
+    # ══════════════════════════════════════════════════════
+    - name: "[SYMLINK] Create symbolic link"
+      file:
+        src: "{{ symlink_src }}"
+        dest: "{{ symlink_dest }}"
+        state: link
+        force: yes
+      when: operation == "symlink"
+
+    - name: "[SYMLINK] Summary"
+      debug:
+        msg:
+          - "Link   : {{ symlink_dest }}"
+          - "Target : {{ symlink_src }}"
+      when: operation == "symlink"
+
+    # ══════════════════════════════════════════════════════
+    #  12. DISK USAGE
+    # ══════════════════════════════════════════════════════
+    - name: "[DU] Get disk usage of path"
+      command: du -sh {{ du_path }}
+      register: du_result
+      changed_when: false
+      when: operation == "disk_usage"
+
+    - name: "[DU] Get overall filesystem usage"
+      command: df -h {{ du_path }}
+      register: df_result
+      changed_when: false
+      when: operation == "disk_usage"
+
+    - name: "[DU] Summary"
+      debug:
+        msg:
+          - "Path usage     : {{ du_result.stdout }}"
+          - "Filesystem     :"
+          - "{{ df_result.stdout }}"
+      when: operation == "disk_usage"
+
+    # ══════════════════════════════════════════════════════
+    #  13. LIST DIRECTORY
+    # ══════════════════════════════════════════════════════
+    - name: "[LS] List directory contents"
+      command: ls -lah {{ list_path }}
+      register: ls_result
+      changed_when: false
+      when: operation == "list_dir"
+
+    - name: "[LS] Print listing"
+      debug:
+        msg: "{{ ls_result.stdout_lines }}"
+      when: operation == "list_dir"
+
+    # ══════════════════════════════════════════════════════
+    #  14. FILE / PATH INFO
+    # ══════════════════════════════════════════════════════
+    - name: "[INFO] Get file/path details"
+      stat:
+        path: "{{ info_path }}"
+        checksum_algorithm: sha256
+      register: info_stat
+      when: operation == "file_info"
+
+    - name: "[INFO] Path not found"
+      debug:
+        msg: "Path '{{ info_path }}' does not exist on {{ inventory_hostname }}"
+      when:
+        - operation == "file_info"
+        - not info_stat.stat.exists
+
+    - name: "[INFO] Print file details"
+      debug:
+        msg:
+          - "Path        : {{ info_path }}"
+          - "Exists      : {{ info_stat.stat.exists }}"
+          - "Type        : {{ 'directory' if info_stat.stat.isdir else 'file' if info_stat.stat.isreg else 'symlink' if info_stat.stat.islnk else 'other' }}"
+          - "Size        : {{ info_stat.stat.size | filesizeformat }}"
+          - "Mode        : {{ info_stat.stat.mode }}"
+          - "Owner       : {{ info_stat.stat.pw_name }}"
+          - "Group       : {{ info_stat.stat.gr_name }}"
+          - "Modified    : {{ info_stat.stat.mtime | int | strftime('%Y-%m-%d %H:%M:%S') }}"
+          - "SHA256      : {{ info_stat.stat.checksum | default('N/A') }}"
+      when:
+        - operation == "file_info"
+        - info_stat.stat.exists
+
+    # ══════════════════════════════════════════════════════
+    #  15. MOVE / RENAME
+    # ══════════════════════════════════════════════════════
+    - name: "[MOVE] Validate source exists"
+      stat:
+        path: "{{ move_src }}"
+      register: move_stat
+      when: operation == "move"
+
+    - name: "[MOVE] Fail if source not found"
+      fail:
+        msg: "Source '{{ move_src }}' does not exist."
+      when:
+        - operation == "move"
+        - not move_stat.stat.exists
+
+    - name: "[MOVE] Move / rename path"
+      command: mv {{ move_src }} {{ move_dest }}
+      when:
+        - operation == "move"
+        - move_stat.stat.exists
+
+    - name: "[MOVE] Summary"
+      debug:
+        msg:
+          - "Moved from : {{ move_src }}"
+          - "Moved to   : {{ move_dest }}"
+      when: operation == "move"
+
+    # ══════════════════════════════════════════════════════
+    #  16. TOUCH FILE (create empty or update timestamp)
+    # ══════════════════════════════════════════════════════
+    - name: "[TOUCH] Touch file"
+      file:
+        path: "{{ touch_path }}"
+        state: touch
+        mode: '0644'
+      when: operation == "touch"
+
+    - name: "[TOUCH] Summary"
+      debug:
+        msg: "Touched : {{ touch_path }}"
+      when: operation == "touch"
+
+    # ══════════════════════════════════════════════════════
+    #  17. GREP / SEARCH IN FILE
+    # ══════════════════════════════════════════════════════
+    - name: "[GREP] Validate file exists"
+      stat:
+        path: "{{ grep_file }}"
+      register: grep_stat
+      when: operation == "grep"
+
+    - name: "[GREP] Fail if file not found"
+      fail:
+        msg: "File '{{ grep_file }}' does not exist."
+      when:
+        - operation == "grep"
+        - not grep_stat.stat.exists
+
+    - name: "[GREP] Search pattern in file"
+      command: grep -n "{{ grep_pattern }}" {{ grep_file }}
+      register: grep_result
+      changed_when: false
+      failed_when: grep_result.rc > 1
+      when: operation == "grep"
+
+    - name: "[GREP] Print matches"
+      debug:
+        msg: "{{ grep_result.stdout_lines if grep_result.stdout_lines else ['No matches found for: ' + grep_pattern] }}"
+      when: operation == "grep"

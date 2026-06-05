@@ -84,14 +84,25 @@ def run_playbook_thread(job_id, playbook, hosts, extra_vars, distro):
         log_file.write("=" * 50 + "\n\n")
         log_file.flush()
 
+        # Strip ANSI color codes from ansible output — raw escape sequences
+        # corrupt the log display when rendered as HTML text.
+        clean_env = os.environ.copy()
+        clean_env["ANSIBLE_FORCE_COLOR"]    = "0"
+        clean_env["ANSIBLE_NOCOLOR"]        = "1"
+        clean_env["NO_COLOR"]               = "1"
+        clean_env["TERM"]                   = "dumb"
+        clean_env["ANSIBLE_STDOUT_CALLBACK"] = "default"
+        clean_env["PYTHONUNBUFFERED"]        = "1"
+
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
+            env=clean_env
         )
         for line in proc.stdout:
-            log_file.write(line)
+            log_file.write(line.replace('\r', ''))
             log_file.flush()
 
         proc.wait()

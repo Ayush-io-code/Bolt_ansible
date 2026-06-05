@@ -1,0 +1,54 @@
+{
+  "description": "Create or update a Kubernetes Deployment with configurable namespace, image, and replica count",
+  "inputs": [
+    {
+      "name": "k8s_namespace",
+      "label": "Namespace",
+      "type": "text",
+      "placeholder": "default, production, staging",
+      "default": "default"
+    },
+    {
+      "name": "deployment_name",
+      "label": "Deployment Name",
+      "type": "text",
+      "placeholder": "my-app",
+      "default": "bolt-app"
+    },
+    {
+      "name": "container_image",
+      "label": "Container Image",
+      "type": "text",
+      "placeholder": "nginx:latest, myrepo/myapp:1.0",
+      "default": "nginx:latest"
+    },
+    {
+      "name": "replicas",
+      "label": "Replicas",
+      "type": "select",
+      "options": ["1", "2", "3", "5", "10"],
+      "default": "2"
+    },
+    {
+      "name": "container_port",
+      "label": "Container Port",
+      "type": "text",
+      "placeholder": "80",
+      "default": "80"
+    },
+    {
+      "name": "service_type",
+      "label": "Service Type",
+      "type": "select",
+      "options": ["ClusterIP", "NodePort", "LoadBalancer"],
+      "default": "ClusterIP"
+    },
+    {
+      "name": "k8s_action",
+      "label": "Action",
+      "type": "select",
+      "options": ["apply", "delete"],
+      "default": "apply"
+    }
+  ]
+}

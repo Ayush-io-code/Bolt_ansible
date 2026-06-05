@@ -1,0 +1,128 @@
+---
+- name: Install Docker Engine
+  hosts: all
+  become: yes
+
+  vars:
+    docker_user: "root"
+    install_compose: "yes"
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── DEBIAN / UBUNTU ───────────────────────────────────────────────────────
+    - name: Remove old Docker packages (Debian)
+      apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+      when: ansible_os_family == "Debian"
+      ignore_errors: yes
+
+    - name: Install prerequisites (Debian)
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker GPG key (Debian)
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker apt repository (Debian)
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+        https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+        > /etc/apt/sources.list.d/docker.list
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker Engine (Debian)
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: latest
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    # ── RHEL / CENTOS / ROCKY / ALMA ─────────────────────────────────────────
+    - name: Remove old Docker packages (RHEL)
+      package:
+        name:
+          - docker
+          - docker-client
+          - docker-common
+          - docker-engine
+        state: absent
+      when: ansible_os_family == "RedHat"
+      ignore_errors: yes
+
+    - name: Install yum-utils (RHEL)
+      package:
+        name: yum-utils
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Add Docker repo (RHEL)
+      command: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Docker Engine (RHEL)
+      package:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: latest
+      when: ansible_os_family == "RedHat"
+
+    # ── COMMON ────────────────────────────────────────────────────────────────
+    - name: Start and enable Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user to docker group
+      user:
+        name: "{{ docker_user }}"
+        groups: docker
+        append: yes
+      when: docker_user != "root"
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_ver
+      changed_when: false
+
+    - name: Print summary
+      debug:
+        msg:
+          - "{{ docker_ver.stdout }}"
+          - "Docker is running on {{ inventory_hostname }}"
+          - "User '{{ docker_user }}' added to docker group"

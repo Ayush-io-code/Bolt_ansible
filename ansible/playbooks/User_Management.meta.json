@@ -1,0 +1,40 @@
+{
+  "description": "Create, delete, or list user accounts on target hosts",
+  "inputs": [
+    {
+      "name": "action",
+      "label": "Action",
+      "type": "select",
+      "options": ["create", "delete", "list"],
+      "default": "create"
+    },
+    {
+      "name": "username",
+      "label": "Username",
+      "type": "text",
+      "placeholder": "john",
+      "default": ""
+    },
+    {
+      "name": "shell",
+      "label": "Login Shell",
+      "type": "select",
+      "options": ["/bin/bash", "/bin/sh", "/usr/sbin/nologin"],
+      "default": "/bin/bash"
+    },
+    {
+      "name": "groups",
+      "label": "Groups (comma-separated)",
+      "type": "text",
+      "placeholder": "sudo,docker",
+      "default": "sudo"
+    },
+    {
+      "name": "password",
+      "label": "Password (leave blank for key-only)",
+      "type": "text",
+      "placeholder": "leave blank for SSH key auth",
+      "default": ""
+    }
+  ]
+}

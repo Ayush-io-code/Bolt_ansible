@@ -1,0 +1,47 @@
+{
+  "description": "Execute Terraform commands (plan, apply, destroy) on a specified workspace and directory",
+  "inputs": [
+    {
+      "name": "tf_workspace",
+      "label": "Workspace",
+      "type": "text",
+      "placeholder": "default, staging, production",
+      "default": "default"
+    },
+    {
+      "name": "tf_action",
+      "label": "Action",
+      "type": "select",
+      "options": ["plan", "apply", "destroy"],
+      "default": "plan"
+    },
+    {
+      "name": "tf_dir",
+      "label": "Terraform Directory",
+      "type": "text",
+      "placeholder": "/opt/terraform/myproject",
+      "default": "/opt/terraform"
+    },
+    {
+      "name": "tf_var_file",
+      "label": "Var File (optional)",
+      "type": "text",
+      "placeholder": "prod.tfvars (leave blank to skip)",
+      "default": ""
+    },
+    {
+      "name": "auto_approve",
+      "label": "Auto Approve (apply/destroy only)",
+      "type": "select",
+      "options": ["yes", "no"],
+      "default": "no"
+    },
+    {
+      "name": "tf_version",
+      "label": "Terraform Version",
+      "type": "select",
+      "options": ["latest", "1.7.0", "1.6.6", "1.5.7"],
+      "default": "latest"
+    }
+  ]
+}

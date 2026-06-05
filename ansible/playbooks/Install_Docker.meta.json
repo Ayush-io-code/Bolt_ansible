@@ -1,0 +1,12 @@
+{
+  "description": "Install Docker Engine and Docker Compose plugin on target hosts",
+  "inputs": [
+    {
+      "name": "docker_user",
+      "label": "User to add to docker group",
+      "type": "text",
+      "placeholder": "ubuntu",
+      "default": "root"
+    }
+  ]
+}

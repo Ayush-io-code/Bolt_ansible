@@ -23,7 +23,7 @@ PRIVATE_KEY="$KEY_DIR/bolt_rsa"
 PUBLIC_KEY="$KEY_DIR/bolt_rsa.pub"
 COMPOSE_FILE="./docker-compose.yml"
 INVENTORY_FILE="./ansible/inventory/hosts.yml"
-HOST_START_IP=20      # hosts start at 172.20.0.21, 172.20.0.22 ...
+HOST_START_IP=20      # hosts start at 172.30.0.21, 172.30.0.22 ...
 MAX_HOSTS=20          # max hosts to prevent subnet overflow
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ services:
       - ANSIBLE_BASE=/ansible
     networks:
       bolt-net:
-        ipv4_address: 172.20.0.10
+        ipv4_address: 172.30.0.10
 
   # ── Frontend: Nginx serving static HTML/JS ───────────────────────────────────
   frontend:
@@ -123,14 +123,14 @@ services:
       - backend
     networks:
       bolt-net:
-        ipv4_address: 172.20.0.11
+        ipv4_address: 172.30.0.11
 
 COMPOSE_BASE
 
 # Append one block per host
 for i in $(seq 1 $NUM_HOSTS); do
   IP_LAST=$((HOST_START_IP + i))
-  IP="172.20.0.$IP_LAST"
+  IP="172.30.0.$IP_LAST"
 
   cat >> "$COMPOSE_FILE" << HOST_BLOCK
   # ── Target host $i ────────────────────────────────────────────────────────────
@@ -154,7 +154,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/24
+        - subnet: 172.30.0.0/24
 
 volumes:
   ansible_logs:
@@ -178,7 +178,7 @@ INV_HEADER
 
 for i in $(seq 1 $NUM_HOSTS); do
   IP_LAST=$((HOST_START_IP + i))
-  IP="172.20.0.$IP_LAST"
+  IP="172.30.0.$IP_LAST"
 
   cat >> "$INVENTORY_FILE" << HOST_INV
     host$i.bolt.local:
@@ -210,7 +210,7 @@ echo ""
 echo -e "  Target hosts:"
 for i in $(seq 1 $NUM_HOSTS); do
   IP_LAST=$((HOST_START_IP + i))
-  echo -e "  ${GREEN}✔${NC}  bolt-host$i   →  172.20.0.$IP_LAST  (host$i.bolt.local)"
+  echo -e "  ${GREEN}✔${NC}  bolt-host$i   →  172.30.0.$IP_LAST  (host$i.bolt.local)"
 done
 echo ""
 echo -e "  To stop:    ${YELLOW}docker compose down${NC}"

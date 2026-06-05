@@ -1,0 +1,93 @@
+---
+- name: Disk Cleanup
+  hosts: all
+  become: yes
+
+  vars:
+    cleanup_mode: "dry_run"
+    log_retention_days: "30"
+    target_path: "/var/log"
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── DRY RUN — show what would be deleted ──────────────────────────────────
+    - name: Find old log files (dry run)
+      find:
+        paths: "{{ target_path }}"
+        age: "{{ log_retention_days }}d"
+        recurse: yes
+        patterns: "*.log,*.gz,*.old"
+      register: old_files
+      when: cleanup_mode == "dry_run"
+
+    - name: Calculate space to be freed
+      set_fact:
+        total_size_mb: "{{ (old_files.files | map(attribute='size') | sum / 1024 / 1024) | round(2) }}"
+      when: cleanup_mode == "dry_run"
+
+    - name: Print dry run report
+      debug:
+        msg:
+          - "DRY RUN — nothing deleted"
+          - "Files found older than {{ log_retention_days }} days: {{ old_files.matched }}"
+          - "Space that would be freed: {{ total_size_mb }} MB"
+          - "Path: {{ target_path }}"
+      when: cleanup_mode == "dry_run"
+
+    # ── CLEAN LOGS ────────────────────────────────────────────────────────────
+    - name: Delete old log files
+      find:
+        paths: "{{ target_path }}"
+        age: "{{ log_retention_days }}d"
+        recurse: yes
+        patterns: "*.log,*.gz,*.old"
+      register: files_to_delete
+      when: cleanup_mode == "clean_logs"
+
+    - name: Remove old log files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ files_to_delete.files }}"
+      when: cleanup_mode == "clean_logs"
+
+    - name: Log cleanup summary
+      debug:
+        msg: "Deleted {{ files_to_delete.matched }} files from {{ target_path }}"
+      when: cleanup_mode == "clean_logs"
+
+    # ── APT CLEAN (Debian) ────────────────────────────────────────────────────
+    - name: Clean apt cache
+      apt:
+        autoclean: yes
+        autoremove: yes
+      when:
+        - ansible_os_family == "Debian"
+        - cleanup_mode == "apt_clean"
+
+    - name: Purge apt cache completely
+      command: apt-get clean
+      when:
+        - ansible_os_family == "Debian"
+        - cleanup_mode == "apt_clean"
+
+    # ── YUM CLEAN (RHEL) ──────────────────────────────────────────────────────
+    - name: Clean yum cache
+      command: yum clean all
+      when:
+        - ansible_os_family == "RedHat"
+        - cleanup_mode == "apt_clean"
+
+    # ── DISK USAGE REPORT (always shown at the end) ───────────────────────────
+    - name: Get disk usage after cleanup
+      command: df -h
+      register: df_output
+      changed_when: false
+
+    - name: Print disk usage
+      debug:
+        msg: "{{ df_output.stdout_lines }}"

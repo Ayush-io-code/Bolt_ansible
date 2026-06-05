@@ -1,0 +1,85 @@
+---
+- name: User Management
+  hosts: all
+  become: yes
+
+  vars:
+    username: "newuser"
+    action: "create"
+    shell: "/bin/bash"
+    groups: "sudo"
+    password: ""
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── CREATE USER ───────────────────────────────────────────────────────────
+    - name: Create user account
+      user:
+        name: "{{ username }}"
+        shell: "{{ shell }}"
+        groups: "{{ groups }}"
+        append: yes
+        create_home: yes
+        state: present
+      when: action == "create"
+
+    - name: Set password for user
+      user:
+        name: "{{ username }}"
+        password: "{{ password | password_hash('sha512') }}"
+      when:
+        - action == "create"
+        - password != ""
+
+    - name: Set up sudoers (no password)
+      lineinfile:
+        path: /etc/sudoers
+        line: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: "visudo -cf %s"
+      when:
+        - action == "create"
+        - "'sudo' in groups"
+
+    - name: Confirm user created
+      debug:
+        msg: "User '{{ username }}' created with shell {{ shell }} and groups {{ groups }}"
+      when: action == "create"
+
+    # ── DELETE USER ───────────────────────────────────────────────────────────
+    - name: Delete user account
+      user:
+        name: "{{ username }}"
+        state: absent
+        remove: yes
+      when: action == "delete"
+
+    - name: Remove from sudoers
+      lineinfile:
+        path: /etc/sudoers
+        line: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
+        state: absent
+        validate: "visudo -cf %s"
+      when: action == "delete"
+
+    - name: Confirm user deleted
+      debug:
+        msg: "User '{{ username }}' and home directory removed."
+      when: action == "delete"
+
+    # ── LIST USERS ────────────────────────────────────────────────────────────
+    - name: List all non-system users
+      shell: "awk -F: '$3 >= 1000 && $1 != \"nobody\" {print $1, \"uid=\"$3, \"shell=\"$7}' /passwd"
+      args:
+        executable: /bin/bash
+      register: user_list
+      changed_when: false
+      when: action == "list"
+
+    - name: Print users
+      debug:
+        msg: "{{ user_list.stdout_lines }}"
+      when: action == "list"

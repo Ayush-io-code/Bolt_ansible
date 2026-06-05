@@ -18,7 +18,7 @@ services:
       - ANSIBLE_BASE=/ansible
     networks:
       bolt-net:
-        ipv4_address: 172.20.0.10
+        ipv4_address: 172.30.0.10
 
   # ── Frontend: Nginx serving static HTML/JS ───────────────────────────────────
   frontend:
@@ -30,7 +30,7 @@ services:
       - backend
     networks:
       bolt-net:
-        ipv4_address: 172.20.0.11
+        ipv4_address: 172.30.0.11
 
   # ── Target host 1 ────────────────────────────────────────────────────────────
   target-host-1:
@@ -41,7 +41,7 @@ services:
     hostname: host1.bolt.local
     networks:
       bolt-net:
-        ipv4_address: 172.20.0.21
+        ipv4_address: 172.30.0.21
 
   # ── Target host 2 ────────────────────────────────────────────────────────────
   target-host-2:
@@ -52,25 +52,14 @@ services:
     hostname: host2.bolt.local
     networks:
       bolt-net:
-        ipv4_address: 172.20.0.22
-
-  # ── Target host 3 ────────────────────────────────────────────────────────────
-  target-host-3:
-    build:
-      context: .
-      dockerfile: ./docker/target-host/Dockerfile
-    container_name: bolt-host3
-    hostname: host3.bolt.local
-    networks:
-      bolt-net:
-        ipv4_address: 172.20.0.23
+        ipv4_address: 172.30.0.22
 
 networks:
   bolt-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/24
+        - subnet: 172.30.0.0/24
 
 volumes:
   ansible_logs:

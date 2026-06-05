@@ -1,0 +1,19 @@
+{
+  "description": "Start, stop, restart, enable, or disable any systemd service",
+  "inputs": [
+    {
+      "name": "service_name",
+      "label": "Service Name",
+      "type": "text",
+      "placeholder": "nginx",
+      "default": "nginx"
+    },
+    {
+      "name": "action",
+      "label": "Action",
+      "type": "select",
+      "options": ["status", "start", "stop", "restart", "enable", "disable"],
+      "default": "status"
+    }
+  ]
+}

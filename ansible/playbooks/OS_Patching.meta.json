@@ -1,0 +1,19 @@
+{
+  "description": "Apply security or full OS updates on target hosts",
+  "inputs": [
+    {
+      "name": "patch_mode",
+      "label": "Patch Mode",
+      "type": "select",
+      "options": ["check", "security", "full"],
+      "default": "check"
+    },
+    {
+      "name": "reboot_if_needed",
+      "label": "Reboot if required after patching",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    }
+  ]
+}

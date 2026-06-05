@@ -1,0 +1,54 @@
+{
+  "description": "Configure Nginx as a reverse proxy for a backend application with optional SSL termination",
+  "inputs": [
+    {
+      "name": "proxy_domain",
+      "label": "Domain / Server Name",
+      "type": "text",
+      "placeholder": "app.example.com",
+      "default": "_"
+    },
+    {
+      "name": "backend_host",
+      "label": "Backend Host",
+      "type": "text",
+      "placeholder": "localhost or 127.0.0.1",
+      "default": "127.0.0.1"
+    },
+    {
+      "name": "backend_port",
+      "label": "Backend Port",
+      "type": "text",
+      "placeholder": "3000, 8080, 5000",
+      "default": "3000"
+    },
+    {
+      "name": "listen_port",
+      "label": "Nginx Listen Port",
+      "type": "select",
+      "options": ["80", "8080", "443"],
+      "default": "80"
+    },
+    {
+      "name": "enable_ssl",
+      "label": "Enable SSL (requires cert at /etc/letsencrypt)",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    },
+    {
+      "name": "enable_gzip",
+      "label": "Enable Gzip Compression",
+      "type": "select",
+      "options": ["yes", "no"],
+      "default": "yes"
+    },
+    {
+      "name": "proxy_timeout",
+      "label": "Proxy Timeout (seconds)",
+      "type": "select",
+      "options": ["30", "60", "120", "300"],
+      "default": "60"
+    }
+  ]
+}

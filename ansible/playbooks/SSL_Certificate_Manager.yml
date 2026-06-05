@@ -1,0 +1,90 @@
+---
+- name: SSL Certificate Manager
+  hosts: all
+  become: yes
+
+  vars:
+    domain: ""
+    email: ""
+    cert_action: "issue"
+    webserver: "nginx"
+    staging: "no"
+
+  tasks:
+
+    - name: Validate domain is provided
+      fail:
+        msg: "Domain name is required"
+      when: domain == "" and cert_action != "check"
+
+    - name: Install Certbot (Debian/Ubuntu)
+      apt:
+        name:
+          - certbot
+          - "python3-certbot-{{ webserver }}"
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian" and webserver != "standalone"
+
+    - name: Install Certbot standalone (Debian/Ubuntu)
+      apt:
+        name: certbot
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian" and webserver == "standalone"
+
+    - name: Install Certbot (RHEL)
+      package:
+        name:
+          - certbot
+          - "python3-certbot-{{ webserver }}"
+        state: present
+      when: ansible_os_family == "RedHat" and webserver != "standalone"
+
+    - name: Check existing certificates
+      command: certbot certificates
+      register: cert_list
+      changed_when: false
+      when: cert_action == "check"
+
+    - name: Print certificate list
+      debug:
+        msg: "{{ cert_list.stdout_lines }}"
+      when: cert_action == "check"
+
+    - name: Issue certificate (nginx/apache)
+      command: >
+        certbot --{{ webserver }}
+        -d {{ domain }}
+        --email {{ email }}
+        --agree-tos
+        --non-interactive
+        {{ '--staging' if staging == 'yes' else '' }}
+      register: issue_result
+      when: cert_action == "issue" and webserver != "standalone"
+
+    - name: Issue certificate (standalone)
+      command: >
+        certbot certonly --standalone
+        -d {{ domain }}
+        --email {{ email }}
+        --agree-tos
+        --non-interactive
+        {{ '--staging' if staging == 'yes' else '' }}
+      register: issue_result
+      when: cert_action == "issue" and webserver == "standalone"
+
+    - name: Renew all certificates
+      command: certbot renew {{ '--dry-run' if staging == 'yes' else '' }}
+      register: renew_result
+      when: cert_action == "renew"
+
+    - name: Revoke certificate
+      command: certbot revoke --cert-name {{ domain }} --non-interactive
+      register: revoke_result
+      when: cert_action == "revoke"
+
+    - name: Print result
+      debug:
+        msg: "{{ (issue_result | default(renew_result) | default(revoke_result)).stdout_lines | default(['Done']) }}"
+      when: cert_action != "check"

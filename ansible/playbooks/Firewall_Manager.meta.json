@@ -1,0 +1,33 @@
+{
+  "description": "Open, close, or check firewall ports using ufw (Debian) or firewalld (RHEL)",
+  "inputs": [
+    {
+      "name": "action",
+      "label": "Action",
+      "type": "select",
+      "options": ["status", "open", "close", "enable"],
+      "default": "status"
+    },
+    {
+      "name": "port",
+      "label": "Port Number",
+      "type": "text",
+      "placeholder": "80",
+      "default": "80"
+    },
+    {
+      "name": "protocol",
+      "label": "Protocol",
+      "type": "select",
+      "options": ["tcp", "udp"],
+      "default": "tcp"
+    },
+    {
+      "name": "source_ip",
+      "label": "Allow from IP (or 'any')",
+      "type": "text",
+      "placeholder": "any or 192.168.1.0/24",
+      "default": "any"
+    }
+  ]
+}

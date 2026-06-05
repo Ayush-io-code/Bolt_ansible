@@ -1,0 +1,26 @@
+{
+  "description": "Install and configure Nginx web server with a virtual host",
+  "inputs": [
+    {
+      "name": "nginx_port",
+      "label": "Listening Port",
+      "type": "select",
+      "options": ["80", "8080", "8000", "3000"],
+      "default": "80"
+    },
+    {
+      "name": "server_name",
+      "label": "Server Name / Domain",
+      "type": "text",
+      "placeholder": "example.com or _ for any",
+      "default": "_"
+    },
+    {
+      "name": "install_path",
+      "label": "Web Root Path",
+      "type": "text",
+      "placeholder": "/var/www/html",
+      "default": "/var/www/html"
+    }
+  ]
+}

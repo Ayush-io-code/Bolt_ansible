@@ -1,0 +1,23 @@
+# docker-compose.prod.yml
+# ─────────────────────────────────────────────────────────────────
+# Production override — used during CI/CD deploy.
+# Replaces `build:` directives with pre-built GHCR images so
+# Docker Compose uses the images built by GitHub Actions instead
+# of rebuilding from source on the deployment machine.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ─────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+  backend:
+    build: !reset null
+    image: ${BACKEND_IMAGE:-ghcr.io/ayush-io-code/bolt-backend:latest}
+    environment:
+      - FLASK_ENV=production
+
+  frontend:
+    build: !reset null
+    image: ${FRONTEND_IMAGE:-ghcr.io/ayush-io-code/bolt-frontend:latest}

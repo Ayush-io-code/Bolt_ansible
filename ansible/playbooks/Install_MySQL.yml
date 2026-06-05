@@ -1,0 +1,104 @@
+---
+- name: Install MySQL Server
+  hosts: all
+  become: yes
+
+  vars:
+    mysql_root_password: "BoltSecure@123"
+    mysql_database: ""
+    mysql_user: ""
+    mysql_user_password: ""
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── INSTALL ───────────────────────────────────────────────────────────────
+    - name: Install MySQL (Debian/Ubuntu)
+      apt:
+        name:
+          - mysql-server
+          - python3-mysqldb
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install MySQL (RHEL)
+      package:
+        name:
+          - mysql-server
+          - python3-PyMySQL
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Start and enable MySQL
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Start and enable mysqld (RHEL)
+      service:
+        name: mysqld
+        state: started
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    # ── SECURE ROOT ───────────────────────────────────────────────────────────
+    - name: Set root password
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        host_all: yes
+        state: present
+      ignore_errors: yes
+
+    - name: Remove anonymous users
+      mysql_user:
+        name: ''
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Remove test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    # ── CREATE DATABASE ───────────────────────────────────────────────────────
+    - name: Create database
+      mysql_db:
+        name: "{{ mysql_database }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      when: mysql_database != ""
+
+    # ── CREATE USER ───────────────────────────────────────────────────────────
+    - name: Create MySQL user
+      mysql_user:
+        name: "{{ mysql_user }}"
+        password: "{{ mysql_user_password }}"
+        priv: "{{ mysql_database }}.*:ALL"
+        host: '%'
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+      when:
+        - mysql_user != ""
+        - mysql_database != ""
+
+    - name: Print summary
+      debug:
+        msg:
+          - "MySQL installed on {{ inventory_hostname }}"
+          - "Root password set"
+          - "Database: {{ mysql_database if mysql_database != '' else 'none created' }}"
+          - "App user: {{ mysql_user if mysql_user != '' else 'none created' }}"

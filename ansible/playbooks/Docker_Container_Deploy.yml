@@ -1,0 +1,92 @@
+---
+- name: Docker Container Deployment
+  hosts: all
+  become: yes
+
+  vars:
+    image_name: "nginx"
+    image_tag: "latest"
+    container_name: "bolt-container"
+    host_port: "8080"
+    container_port: "80"
+    restart_policy: "unless-stopped"
+    env_vars: ""
+
+  tasks:
+
+    - name: Ensure Docker is installed
+      package:
+        name: docker.io
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Docker is installed (RHEL)
+      package:
+        name: docker
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull Docker image
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        tag: "{{ image_tag }}"
+        source: pull
+        force_source: yes
+
+    - name: Parse environment variables into list
+      set_fact:
+        env_list: "{{ env_vars.split(',') | select('match', '.+=.+') | list }}"
+      when: env_vars | length > 0
+
+    - name: Set empty env list if no env vars provided
+      set_fact:
+        env_list: []
+      when: env_vars | length == 0
+
+    - name: Stop and remove existing container if present
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+        force_kill: yes
+      ignore_errors: yes
+
+    - name: Run Docker container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image_name }}:{{ image_tag }}"
+        state: started
+        restart_policy: "{{ restart_policy }}"
+        ports:
+          - "{{ host_port }}:{{ container_port }}"
+        env: "{{ dict(env_list | map('regex_replace', '^(.+)=(.+)$', '\\1=\\2') | map('split', '=')) }}"
+      when: env_list | length > 0
+
+    - name: Run Docker container (no env vars)
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image_name }}:{{ image_tag }}"
+        state: started
+        restart_policy: "{{ restart_policy }}"
+        ports:
+          - "{{ host_port }}:{{ container_port }}"
+      when: env_list | length == 0
+
+    - name: Verify container is running
+      community.docker.docker_container_info:
+        name: "{{ container_name }}"
+      register: container_info
+
+    - name: Print deployment summary
+      debug:
+        msg:
+          - "Container   : {{ container_name }}"
+          - "Image       : {{ image_name }}:{{ image_tag }}"
+          - "Port map    : {{ host_port }}:{{ container_port }}"
+          - "Status      : {{ container_info.container.State.Status }}"
+          - "Restart     : {{ restart_policy }}"

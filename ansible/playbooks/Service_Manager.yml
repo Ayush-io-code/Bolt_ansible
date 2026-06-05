@@ -1,0 +1,61 @@
+---
+- name: Service Manager
+  hosts: all
+  become: yes
+
+  vars:
+    service_name: "nginx"
+    action: "status"
+
+  tasks:
+
+    - name: Get service status
+      systemd:
+        name: "{{ service_name }}"
+      register: svc_status
+      when: action == "status"
+      ignore_errors: yes
+
+    - name: Print service status
+      debug:
+        msg:
+          - "Service  : {{ service_name }}"
+          - "State    : {{ svc_status.status.ActiveState | default('unknown') }}"
+          - "Sub      : {{ svc_status.status.SubState | default('unknown') }}"
+          - "Enabled  : {{ svc_status.status.UnitFileState | default('unknown') }}"
+      when: action == "status"
+
+    - name: Start service
+      service:
+        name: "{{ service_name }}"
+        state: started
+      when: action == "start"
+
+    - name: Stop service
+      service:
+        name: "{{ service_name }}"
+        state: stopped
+      when: action == "stop"
+
+    - name: Restart service
+      service:
+        name: "{{ service_name }}"
+        state: restarted
+      when: action == "restart"
+
+    - name: Enable service on boot
+      service:
+        name: "{{ service_name }}"
+        enabled: yes
+      when: action == "enable"
+
+    - name: Disable service on boot
+      service:
+        name: "{{ service_name }}"
+        enabled: no
+      when: action == "disable"
+
+    - name: Confirm action
+      debug:
+        msg: "Action '{{ action }}' completed for service '{{ service_name }}' on {{ inventory_hostname }}"
+      when: action != "status"

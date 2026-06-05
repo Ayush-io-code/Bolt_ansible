@@ -1,0 +1,135 @@
+---
+- name: AWS EC2 Provisioning
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  vars:
+    aws_region: "us-east-1"
+    instance_type: "t3.micro"
+    ami_id: "ami-0c55b159cbfafe1f0"
+    key_name: ""
+    instance_name: "bolt-instance"
+    security_group: ""
+    ec2_action: "provision"
+    volume_size: "20"
+
+  tasks:
+
+    - name: Install pip3
+      package:
+        name: python3-pip
+        state: present
+      gather_facts: yes
+
+    - name: Install boto3 and botocore
+      pip:
+        name:
+          - boto3
+          - botocore
+        state: present
+
+    - name: Verify AWS credentials are configured
+      shell: aws sts get-caller-identity --region {{ aws_region }}
+      register: aws_identity
+      changed_when: false
+      failed_when: aws_identity.rc != 0
+      environment:
+        AWS_DEFAULT_REGION: "{{ aws_region }}"
+
+    - name: Print AWS identity
+      debug:
+        msg: "{{ aws_identity.stdout }}"
+
+    # ── PROVISION ─────────────────────────────────────────────────────────────
+    - name: Launch EC2 instance (no security group specified)
+      amazon.aws.ec2_instance:
+        name: "{{ instance_name }}"
+        region: "{{ aws_region }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ ami_id }}"
+        key_name: "{{ key_name }}"
+        state: running
+        wait: yes
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: "{{ volume_size | int }}"
+              delete_on_termination: yes
+        tags:
+          Name: "{{ instance_name }}"
+          ManagedBy: bolt
+      register: ec2_result
+      when: ec2_action == "provision" and security_group == ""
+
+    - name: Launch EC2 instance (with security group)
+      amazon.aws.ec2_instance:
+        name: "{{ instance_name }}"
+        region: "{{ aws_region }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ ami_id }}"
+        key_name: "{{ key_name }}"
+        security_group: "{{ security_group }}"
+        state: running
+        wait: yes
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: "{{ volume_size | int }}"
+              delete_on_termination: yes
+        tags:
+          Name: "{{ instance_name }}"
+          ManagedBy: bolt
+      register: ec2_result
+      when: ec2_action == "provision" and security_group != ""
+
+    - name: Print provisioned instance details
+      debug:
+        msg:
+          - "Instance ID   : {{ ec2_result.instance_ids[0] | default('n/a') }}"
+          - "Public IP     : {{ ec2_result.instances[0].public_ip_address | default('n/a') }}"
+          - "Private IP    : {{ ec2_result.instances[0].private_ip_address | default('n/a') }}"
+          - "State         : {{ ec2_result.instances[0].state.name | default('n/a') }}"
+          - "Instance Type : {{ instance_type }}"
+          - "AMI           : {{ ami_id }}"
+          - "Region        : {{ aws_region }}"
+      when: ec2_action == "provision"
+
+    # ── TERMINATE ─────────────────────────────────────────────────────────────
+    - name: Find instance by name tag
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Name": "{{ instance_name }}"
+          "instance-state-name": ["running", "stopped"]
+      register: found_instances
+      when: ec2_action in ["terminate", "start", "stop"]
+
+    - name: Terminate instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids: "{{ found_instances.instances | map(attribute='instance_id') | list }}"
+        state: absent
+        wait: yes
+      when: ec2_action == "terminate" and found_instances.instances | length > 0
+
+    - name: Start instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids: "{{ found_instances.instances | map(attribute='instance_id') | list }}"
+        state: running
+        wait: yes
+      when: ec2_action == "start" and found_instances.instances | length > 0
+
+    - name: Stop instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids: "{{ found_instances.instances | map(attribute='instance_id') | list }}"
+        state: stopped
+        wait: yes
+      when: ec2_action == "stop" and found_instances.instances | length > 0
+
+    - name: No instances found
+      debug:
+        msg: "No instances found with Name tag '{{ instance_name }}' in region {{ aws_region }}"
+      when: ec2_action in ["terminate", "start", "stop"] and found_instances.instances | length == 0

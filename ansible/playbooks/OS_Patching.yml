@@ -1,0 +1,103 @@
+---
+- name: OS Patching and Updates
+  hosts: all
+  become: yes
+
+  vars:
+    patch_mode: "security"
+    reboot_if_needed: "no"
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── CHECK FOR UPDATES ─────────────────────────────────────────────────────
+    - name: Check available updates (Debian)
+      shell: apt-get --simulate upgrade 2>/dev/null | grep "^Inst" | wc -l
+      register: apt_update_count
+      changed_when: false
+      when:
+        - ansible_os_family == "Debian"
+        - patch_mode == "check"
+
+    - name: Check available updates (RHEL)
+      shell: yum check-update --quiet 2>/dev/null | grep -v "^$" | wc -l
+      register: yum_update_count
+      changed_when: false
+      failed_when: false
+      when:
+        - ansible_os_family == "RedHat"
+        - patch_mode == "check"
+
+    - name: Print update count
+      debug:
+        msg: "{{ apt_update_count.stdout | default(yum_update_count.stdout | default('0')) }} packages available for update on {{ inventory_hostname }}"
+      when: patch_mode == "check"
+
+    # ── SECURITY ONLY ─────────────────────────────────────────────────────────
+    - name: Apply security updates only (Debian)
+      apt:
+        upgrade: yes
+        update_cache: yes
+        dpkg_options: 'force-confdef,force-confold'
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+        UNATTENDED_UPGRADES: "1"
+      when:
+        - ansible_os_family == "Debian"
+        - patch_mode == "security"
+
+    - name: Apply security updates only (RHEL)
+      command: yum update --security -y
+      when:
+        - ansible_os_family == "RedHat"
+        - patch_mode == "security"
+
+    # ── FULL UPDATE ───────────────────────────────────────────────────────────
+    - name: Full system update (Debian)
+      apt:
+        upgrade: dist
+        update_cache: yes
+        dpkg_options: 'force-confdef,force-confold'
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+      when:
+        - ansible_os_family == "Debian"
+        - patch_mode == "full"
+
+    - name: Full system update (RHEL)
+      package:
+        name: "*"
+        state: latest
+      when:
+        - ansible_os_family == "RedHat"
+        - patch_mode == "full"
+
+    # ── REBOOT IF NEEDED ──────────────────────────────────────────────────────
+    - name: Check if reboot required (Debian)
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_file
+      when:
+        - ansible_os_family == "Debian"
+        - reboot_if_needed == "yes"
+        - patch_mode != "check"
+
+    - name: Reboot if required
+      reboot:
+        msg: "Rebooting after OS patching via Bolt"
+        reboot_timeout: 120
+      when:
+        - reboot_if_needed == "yes"
+        - patch_mode != "check"
+        - reboot_file.stat.exists | default(false)
+
+    - name: Print summary
+      debug:
+        msg:
+          - "Patching complete on {{ inventory_hostname }}"
+          - "Mode: {{ patch_mode }}"
+          - "Distro: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      when: patch_mode != "check"

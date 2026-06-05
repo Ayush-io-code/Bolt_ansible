@@ -1,0 +1,33 @@
+{
+  "description": "Install MySQL server, set root password, and optionally create a database and user",
+  "inputs": [
+    {
+      "name": "mysql_root_password",
+      "label": "Root Password",
+      "type": "text",
+      "placeholder": "StrongPassword@123",
+      "default": "BoltSecure@123"
+    },
+    {
+      "name": "mysql_database",
+      "label": "Database to Create (optional)",
+      "type": "text",
+      "placeholder": "myapp_db",
+      "default": ""
+    },
+    {
+      "name": "mysql_user",
+      "label": "App User to Create (optional)",
+      "type": "text",
+      "placeholder": "myapp_user",
+      "default": ""
+    },
+    {
+      "name": "mysql_user_password",
+      "label": "App User Password",
+      "type": "text",
+      "placeholder": "UserPassword@123",
+      "default": ""
+    }
+  ]
+}

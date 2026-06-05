@@ -1,0 +1,114 @@
+---
+- name: Install and Configure Nginx
+  hosts: all
+  become: yes
+
+  vars:
+    nginx_port: "80"
+    server_name: "_"
+    install_path: "/var/www/html"
+    enable_ssl: "no"
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── INSTALL ───────────────────────────────────────────────────────────────
+    - name: Install Nginx (Debian/Ubuntu)
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Nginx (RHEL/CentOS/Fedora)
+      package:
+        name: nginx
+        state: latest
+      when: ansible_os_family == "RedHat"
+
+    # ── CONFIGURE ─────────────────────────────────────────────────────────────
+    - name: Create web root directory
+      file:
+        path: "{{ install_path }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      when: ansible_os_family == "Debian"
+
+    - name: Create web root directory (RHEL)
+      file:
+        path: "{{ install_path }}"
+        state: directory
+        owner: nginx
+        group: nginx
+        mode: '0755'
+      when: ansible_os_family == "RedHat"
+
+    - name: Write Nginx virtual host config
+      copy:
+        dest: /etc/nginx/sites-available/bolt.conf
+        content: |
+          server {
+              listen {{ nginx_port }};
+              server_name {{ server_name }};
+              root {{ install_path }};
+              index index.html index.htm;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+
+              access_log /var/log/nginx/bolt_access.log;
+              error_log  /var/log/nginx/bolt_error.log;
+          }
+      when: ansible_os_family == "Debian"
+
+    - name: Enable site
+      file:
+        src: /etc/nginx/sites-available/bolt.conf
+        dest: /etc/nginx/sites-enabled/bolt.conf
+        state: link
+      when: ansible_os_family == "Debian"
+
+    - name: Remove default site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      when: ansible_os_family == "Debian"
+      ignore_errors: yes
+
+    - name: Deploy sample index page
+      copy:
+        dest: "{{ install_path }}/index.html"
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head><title>Deployed by Bolt</title></head>
+          <body>
+            <h1>Bolt Deployment</h1>
+            <p>Host: {{ inventory_hostname }}</p>
+            <p>Date: {{ ansible_date_time.iso8601 }}</p>
+          </body>
+          </html>
+
+    - name: Test Nginx config
+      command: nginx -t
+      changed_when: false
+
+    - name: Ensure Nginx is started and enabled
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Print summary
+      debug:
+        msg:
+          - "Nginx installed on {{ inventory_hostname }}"
+          - "Listening on port {{ nginx_port }}"
+          - "Web root: {{ install_path }}"
+          - "Server name: {{ server_name }}"

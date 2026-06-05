@@ -1,0 +1,111 @@
+---
+- name: Nginx Reverse Proxy Setup
+  hosts: all
+  become: yes
+
+  vars:
+    proxy_domain: "_"
+    backend_host: "127.0.0.1"
+    backend_port: "3000"
+    listen_port: "80"
+    enable_ssl: "no"
+    enable_gzip: "yes"
+    proxy_timeout: "60"
+
+  tasks:
+
+    - name: Install Nginx (Debian/Ubuntu)
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Nginx (RHEL)
+      package:
+        name: nginx
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Write reverse proxy config
+      copy:
+        dest: /etc/nginx/sites-available/bolt-proxy.conf
+        content: |
+          {% if enable_gzip == 'yes' %}
+          gzip on;
+          gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+          gzip_min_length 1000;
+          {% endif %}
+
+          upstream bolt_backend {
+              server {{ backend_host }}:{{ backend_port }};
+              keepalive 32;
+          }
+
+          server {
+              listen {{ listen_port }};
+              server_name {{ proxy_domain }};
+
+              {% if enable_ssl == 'yes' %}
+              listen 443 ssl;
+              ssl_certificate     /etc/letsencrypt/live/{{ proxy_domain }}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/{{ proxy_domain }}/privkey.pem;
+              ssl_protocols       TLSv1.2 TLSv1.3;
+              ssl_ciphers         HIGH:!aNULL:!MD5;
+              {% endif %}
+
+              proxy_read_timeout   {{ proxy_timeout }};
+              proxy_connect_timeout {{ proxy_timeout }};
+              proxy_send_timeout   {{ proxy_timeout }};
+
+              location / {
+                  proxy_pass         http://bolt_backend;
+                  proxy_http_version 1.1;
+                  proxy_set_header   Upgrade $http_upgrade;
+                  proxy_set_header   Connection "upgrade";
+                  proxy_set_header   Host $host;
+                  proxy_set_header   X-Real-IP $remote_addr;
+                  proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header   X-Forwarded-Proto $scheme;
+                  proxy_cache_bypass $http_upgrade;
+              }
+
+              access_log /var/log/nginx/bolt-proxy-access.log;
+              error_log  /var/log/nginx/bolt-proxy-error.log;
+          }
+      when: ansible_os_family == "Debian"
+
+    - name: Enable site
+      file:
+        src: /etc/nginx/sites-available/bolt-proxy.conf
+        dest: /etc/nginx/sites-enabled/bolt-proxy.conf
+        state: link
+      when: ansible_os_family == "Debian"
+
+    - name: Remove default site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      ignore_errors: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
+        enabled: yes
+
+    - name: Print summary
+      debug:
+        msg:
+          - "Proxy domain  : {{ proxy_domain }}"
+          - "Listen port   : {{ listen_port }}"
+          - "Backend       : {{ backend_host }}:{{ backend_port }}"
+          - "SSL           : {{ enable_ssl }}"
+          - "Gzip          : {{ enable_gzip }}"
+          - "Timeout       : {{ proxy_timeout }}s"

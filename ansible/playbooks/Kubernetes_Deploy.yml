@@ -1,0 +1,132 @@
+---
+- name: Kubernetes Deployment
+  hosts: all
+  become: yes
+
+  vars:
+    k8s_namespace: "default"
+    deployment_name: "bolt-app"
+    container_image: "nginx:latest"
+    replicas: "2"
+    container_port: "80"
+    service_type: "ClusterIP"
+    k8s_action: "apply"
+
+  tasks:
+
+    - name: Check kubectl is available
+      command: kubectl version --client --short
+      register: kubectl_check
+      changed_when: false
+      failed_when: kubectl_check.rc != 0
+
+    - name: Print kubectl version
+      debug:
+        msg: "{{ kubectl_check.stdout }}"
+
+    - name: Ensure namespace exists
+      shell: |
+        kubectl get namespace {{ k8s_namespace }} 2>/dev/null || \
+        kubectl create namespace {{ k8s_namespace }}
+      register: ns_result
+      changed_when: "'created' in ns_result.stdout"
+      when: k8s_action == "apply"
+
+    - name: Write Deployment manifest to target
+      copy:
+        dest: /tmp/bolt_k8s_deployment.yml
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: {{ deployment_name }}
+            namespace: {{ k8s_namespace }}
+            labels:
+              app: {{ deployment_name }}
+              managed-by: bolt
+          spec:
+            replicas: {{ replicas }}
+            selector:
+              matchLabels:
+                app: {{ deployment_name }}
+            template:
+              metadata:
+                labels:
+                  app: {{ deployment_name }}
+              spec:
+                containers:
+                  - name: {{ deployment_name }}
+                    image: {{ container_image }}
+                    ports:
+                      - containerPort: {{ container_port }}
+                    resources:
+                      requests:
+                        memory: "64Mi"
+                        cpu: "100m"
+                      limits:
+                        memory: "256Mi"
+                        cpu: "500m"
+      when: k8s_action == "apply"
+
+    - name: Write Service manifest to target
+      copy:
+        dest: /tmp/bolt_k8s_service.yml
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: {{ deployment_name }}-svc
+            namespace: {{ k8s_namespace }}
+            labels:
+              app: {{ deployment_name }}
+              managed-by: bolt
+          spec:
+            selector:
+              app: {{ deployment_name }}
+            type: {{ service_type }}
+            ports:
+              - protocol: TCP
+                port: {{ container_port }}
+                targetPort: {{ container_port }}
+      when: k8s_action == "apply"
+
+    - name: Apply Deployment
+      command: kubectl apply -f /tmp/bolt_k8s_deployment.yml
+      register: deploy_result
+      when: k8s_action == "apply"
+
+    - name: Apply Service
+      command: kubectl apply -f /tmp/bolt_k8s_service.yml
+      register: svc_result
+      when: k8s_action == "apply"
+
+    - name: Wait for rollout to complete
+      command: >
+        kubectl rollout status deployment/{{ deployment_name }}
+        -n {{ k8s_namespace }} --timeout=120s
+      register: rollout
+      when: k8s_action == "apply"
+
+    - name: Delete Deployment and Service
+      shell: |
+        kubectl delete deployment {{ deployment_name }} -n {{ k8s_namespace }} --ignore-not-found
+        kubectl delete service {{ deployment_name }}-svc -n {{ k8s_namespace }} --ignore-not-found
+      when: k8s_action == "delete"
+
+    - name: Get Deployment status
+      command: kubectl get deployment {{ deployment_name }} -n {{ k8s_namespace }}
+      register: deploy_status
+      changed_when: false
+      when: k8s_action == "apply"
+
+    - name: Print summary
+      debug:
+        msg:
+          - "Action      : {{ k8s_action }}"
+          - "Deployment  : {{ deployment_name }}"
+          - "Namespace   : {{ k8s_namespace }}"
+          - "Image       : {{ container_image }}"
+          - "Replicas    : {{ replicas }}"
+          - "Service     : {{ service_type }}"
+          - "Rollout     : {{ rollout.stdout | default('n/a') }}"
+      when: k8s_action == "apply"

@@ -1,0 +1,54 @@
+{
+  "description": "Compress and archive application logs older than a specified number of days, with optional remote upload to S3",
+  "inputs": [
+    {
+      "name": "log_dir",
+      "label": "Log Directory",
+      "type": "text",
+      "placeholder": "/var/log/myapp",
+      "default": "/var/log"
+    },
+    {
+      "name": "older_than_days",
+      "label": "Archive Logs Older Than (days)",
+      "type": "select",
+      "options": ["1", "3", "7", "14", "30", "60", "90"],
+      "default": "7"
+    },
+    {
+      "name": "archive_dir",
+      "label": "Archive Destination",
+      "type": "text",
+      "placeholder": "/opt/log-archives",
+      "default": "/opt/log-archives"
+    },
+    {
+      "name": "compression",
+      "label": "Compression Format",
+      "type": "select",
+      "options": ["gz", "bz2", "xz"],
+      "default": "gz"
+    },
+    {
+      "name": "upload_to_s3",
+      "label": "Upload to S3 after archiving",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    },
+    {
+      "name": "s3_bucket",
+      "label": "S3 Bucket (if upload enabled)",
+      "type": "text",
+      "placeholder": "my-log-bucket",
+      "default": ""
+    },
+    {
+      "name": "delete_after_archive",
+      "label": "Delete originals after archiving",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    }
+  ]
+}

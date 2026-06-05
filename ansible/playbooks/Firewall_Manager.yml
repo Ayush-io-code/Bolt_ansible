@@ -1,0 +1,116 @@
+---
+- name: Firewall Manager
+  hosts: all
+  become: yes
+
+  vars:
+    action: "status"
+    port: "80"
+    protocol: "tcp"
+    source_ip: "any"
+
+  tasks:
+
+    - name: Gather OS facts
+      setup:
+        filter: ansible_distribution*
+
+    # ── INSTALL UFW (Debian) ──────────────────────────────────────────────────
+    - name: Install ufw (Debian/Ubuntu)
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    # ── STATUS ────────────────────────────────────────────────────────────────
+    - name: Get firewall status (Debian)
+      command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      when:
+        - ansible_os_family == "Debian"
+        - action == "status"
+
+    - name: Get firewall status (RHEL)
+      command: firewall-cmd --list-all
+      register: firewalld_status
+      changed_when: false
+      when:
+        - ansible_os_family == "RedHat"
+        - action == "status"
+
+    - name: Print status
+      debug:
+        msg: "{{ ufw_status.stdout_lines | default(firewalld_status.stdout_lines | default([])) }}"
+      when: action == "status"
+
+    # ── OPEN PORT ─────────────────────────────────────────────────────────────
+    - name: Allow port (Debian ufw)
+      ufw:
+        rule: allow
+        port: "{{ port }}"
+        proto: "{{ protocol }}"
+        src: "{{ '0.0.0.0/0' if source_ip == 'any' else source_ip }}"
+        state: enabled
+      when:
+        - ansible_os_family == "Debian"
+        - action == "open"
+
+    - name: Allow port (RHEL firewalld)
+      firewalld:
+        port: "{{ port }}/{{ protocol }}"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when:
+        - ansible_os_family == "RedHat"
+        - action == "open"
+
+    - name: Confirm port opened
+      debug:
+        msg: "Port {{ port }}/{{ protocol }} opened on {{ inventory_hostname }}"
+      when: action == "open"
+
+    # ── CLOSE PORT ────────────────────────────────────────────────────────────
+    - name: Deny port (Debian ufw)
+      ufw:
+        rule: deny
+        port: "{{ port }}"
+        proto: "{{ protocol }}"
+      when:
+        - ansible_os_family == "Debian"
+        - action == "close"
+
+    - name: Close port (RHEL firewalld)
+      firewalld:
+        port: "{{ port }}/{{ protocol }}"
+        permanent: yes
+        state: disabled
+        immediate: yes
+      when:
+        - ansible_os_family == "RedHat"
+        - action == "close"
+
+    - name: Confirm port closed
+      debug:
+        msg: "Port {{ port }}/{{ protocol }} closed on {{ inventory_hostname }}"
+      when: action == "close"
+
+    # ── ENABLE FIREWALL ───────────────────────────────────────────────────────
+    - name: Enable firewall (Debian)
+      ufw:
+        state: enabled
+        policy: deny
+      when:
+        - ansible_os_family == "Debian"
+        - action == "enable"
+
+    - name: Enable firewalld (RHEL)
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+      when:
+        - ansible_os_family == "RedHat"
+        - action == "enable"

@@ -1,0 +1,81 @@
+---
+- name: Application Log Archiver
+  hosts: all
+  become: yes
+
+  vars:
+    log_dir: "/var/log"
+    older_than_days: "7"
+    archive_dir: "/opt/log-archives"
+    compression: "gz"
+    upload_to_s3: "no"
+    s3_bucket: ""
+    delete_after_archive: "no"
+
+  tasks:
+
+    - name: Ensure archive directory exists
+      file:
+        path: "{{ archive_dir }}"
+        state: directory
+        mode: '0750'
+
+    - name: Find log files older than {{ older_than_days }} days
+      find:
+        paths: "{{ log_dir }}"
+        age: "{{ older_than_days }}d"
+        patterns: "*.log,*.log.*"
+        recurse: no
+      register: logs_found
+
+    - name: Print found files
+      debug:
+        msg: "Found {{ logs_found.files | length }} log files to archive"
+
+    - name: Set archive filename
+      set_fact:
+        archive_name: "logs_{{ inventory_hostname }}_{{ ansible_date_time.date }}_{{ ansible_date_time.epoch }}.tar.{{ compression }}"
+
+    - name: Archive log files
+      archive:
+        path: "{{ logs_found.files | map(attribute='path') | list }}"
+        dest: "{{ archive_dir }}/{{ archive_name }}"
+        format: "{{ compression }}"
+      register: archive_result
+      when: logs_found.files | length > 0
+
+    - name: Get archive size
+      stat:
+        path: "{{ archive_dir }}/{{ archive_name }}"
+      register: archive_stat
+      when: logs_found.files | length > 0
+
+    - name: Upload archive to S3
+      shell: |
+        aws s3 cp {{ archive_dir }}/{{ archive_name }} \
+          s3://{{ s3_bucket }}/{{ inventory_hostname }}/{{ archive_name }}
+      register: s3_upload
+      when: upload_to_s3 == "yes" and s3_bucket != "" and logs_found.files | length > 0
+
+    - name: Delete original log files after archiving
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ logs_found.files }}"
+      when: delete_after_archive == "yes" and logs_found.files | length > 0
+
+    - name: Print summary
+      debug:
+        msg:
+          - "Log directory     : {{ log_dir }}"
+          - "Files archived    : {{ logs_found.files | length }}"
+          - "Archive file      : {{ archive_dir }}/{{ archive_name }}"
+          - "Archive size      : {{ (archive_stat.stat.size / 1024 / 1024) | round(2) }} MB"
+          - "Uploaded to S3    : {{ upload_to_s3 }}"
+          - "Originals deleted : {{ delete_after_archive }}"
+      when: logs_found.files | length > 0
+
+    - name: Nothing to archive
+      debug:
+        msg: "No log files older than {{ older_than_days }} days found in {{ log_dir }}"
+      when: logs_found.files | length == 0

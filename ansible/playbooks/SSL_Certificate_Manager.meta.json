@@ -1,0 +1,40 @@
+{
+  "description": "Issue, renew, or revoke Let's Encrypt SSL certificates using Certbot",
+  "inputs": [
+    {
+      "name": "domain",
+      "label": "Domain Name",
+      "type": "text",
+      "placeholder": "example.com",
+      "default": ""
+    },
+    {
+      "name": "email",
+      "label": "Admin Email",
+      "type": "text",
+      "placeholder": "admin@example.com",
+      "default": ""
+    },
+    {
+      "name": "cert_action",
+      "label": "Action",
+      "type": "select",
+      "options": ["issue", "renew", "revoke", "check"],
+      "default": "issue"
+    },
+    {
+      "name": "webserver",
+      "label": "Web Server",
+      "type": "select",
+      "options": ["nginx", "apache", "standalone"],
+      "default": "nginx"
+    },
+    {
+      "name": "staging",
+      "label": "Use Staging (test without rate limits)",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "description": "Pull and run a Docker container on target hosts with configurable port mapping and restart policy",
+  "inputs": [
+    {
+      "name": "image_name",
+      "label": "Image Name",
+      "type": "text",
+      "placeholder": "nginx, myrepo/myapp",
+      "default": "nginx"
+    },
+    {
+      "name": "image_tag",
+      "label": "Image Tag",
+      "type": "text",
+      "placeholder": "latest, 1.25, stable",
+      "default": "latest"
+    },
+    {
+      "name": "container_name",
+      "label": "Container Name",
+      "type": "text",
+      "placeholder": "my-container",
+      "default": "bolt-container"
+    },
+    {
+      "name": "host_port",
+      "label": "Host Port",
+      "type": "text",
+      "placeholder": "8080",
+      "default": "8080"
+    },
+    {
+      "name": "container_port",
+      "label": "Container Port",
+      "type": "text",
+      "placeholder": "80",
+      "default": "80"
+    },
+    {
+      "name": "restart_policy",
+      "label": "Restart Policy",
+      "type": "select",
+      "options": ["no", "always", "unless-stopped", "on-failure"],
+      "default": "unless-stopped"
+    },
+    {
+      "name": "env_vars",
+      "label": "Environment Variables (KEY=VAL,KEY=VAL)",
+      "type": "text",
+      "placeholder": "ENV=production,DEBUG=false",
+      "default": ""
+    }
+  ]
+}

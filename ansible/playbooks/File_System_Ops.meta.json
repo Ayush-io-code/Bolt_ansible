@@ -1,0 +1,313 @@
+{
+  "description": "Swiss-army knife for file system operations — tar, untar, copy, chmod, chown, mkdir, env update, remove, kill PID, find, symlink, disk usage, list dir, file info, move, touch, grep",
+  "inputs": [
+    {
+      "name": "operation",
+      "label": "Operation",
+      "type": "select",
+      "options": [
+        "tar",
+        "untar",
+        "copy",
+        "chmod",
+        "mkdir",
+        "chown",
+        "env_update",
+        "remove",
+        "kill_pid",
+        "find",
+        "symlink",
+        "disk_usage",
+        "list_dir",
+        "file_info",
+        "move",
+        "touch",
+        "grep"
+      ],
+      "default": "list_dir"
+    },
+
+    {
+      "name": "tar_source_path",
+      "label": "[TAR] Source folder to archive",
+      "type": "text",
+      "placeholder": "/opt/myapp",
+      "default": ""
+    },
+    {
+      "name": "tar_dest_path",
+      "label": "[TAR] Output archive path",
+      "type": "text",
+      "placeholder": "/opt/myapp_backup.tar.gz",
+      "default": ""
+    },
+    {
+      "name": "tar_compression",
+      "label": "[TAR] Compression",
+      "type": "select",
+      "options": ["gz", "bz2", "xz"],
+      "default": "gz"
+    },
+    {
+      "name": "tar_remove_original",
+      "label": "[TAR] Remove original folder after archiving?",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    },
+
+    {
+      "name": "untar_archive_path",
+      "label": "[UNTAR] Archive file path",
+      "type": "text",
+      "placeholder": "/opt/myapp_backup.tar.gz",
+      "default": ""
+    },
+    {
+      "name": "untar_dest_path",
+      "label": "[UNTAR] Extract to path",
+      "type": "text",
+      "placeholder": "/opt/ (blank = same folder as archive)",
+      "default": ""
+    },
+
+    {
+      "name": "copy_src",
+      "label": "[COPY] Source path",
+      "type": "text",
+      "placeholder": "/etc/nginx/nginx.conf",
+      "default": ""
+    },
+    {
+      "name": "copy_dest",
+      "label": "[COPY] Destination path",
+      "type": "text",
+      "placeholder": "/tmp/nginx.conf.bak",
+      "default": ""
+    },
+    {
+      "name": "copy_overwrite",
+      "label": "[COPY] Overwrite if exists?",
+      "type": "select",
+      "options": ["yes", "no"],
+      "default": "yes"
+    },
+
+    {
+      "name": "perm_path",
+      "label": "[CHMOD] Path",
+      "type": "text",
+      "placeholder": "/opt/myapp",
+      "default": ""
+    },
+    {
+      "name": "perm_mode",
+      "label": "[CHMOD] Permission mode",
+      "type": "select",
+      "options": ["0644", "0755", "0700", "0600", "0777", "0400"],
+      "default": "0755"
+    },
+    {
+      "name": "perm_recursive",
+      "label": "[CHMOD] Recursive?",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    },
+
+    {
+      "name": "dir_path",
+      "label": "[MKDIR] Directory path to create",
+      "type": "text",
+      "placeholder": "/opt/myapp/logs",
+      "default": ""
+    },
+    {
+      "name": "dir_mode",
+      "label": "[MKDIR] Directory permissions",
+      "type": "select",
+      "options": ["0755", "0700", "0750", "0777"],
+      "default": "0755"
+    },
+
+    {
+      "name": "own_path",
+      "label": "[CHOWN] Path",
+      "type": "text",
+      "placeholder": "/opt/myapp",
+      "default": ""
+    },
+    {
+      "name": "own_user",
+      "label": "[CHOWN] New owner username (or UID)",
+      "type": "text",
+      "placeholder": "www-data or 1001",
+      "default": ""
+    },
+    {
+      "name": "own_group",
+      "label": "[CHOWN] New group name (or GID)",
+      "type": "text",
+      "placeholder": "www-data or 1001",
+      "default": ""
+    },
+    {
+      "name": "own_recursive",
+      "label": "[CHOWN] Recursive?",
+      "type": "select",
+      "options": ["no", "yes"],
+      "default": "no"
+    },
+
+    {
+      "name": "env_file_path",
+      "label": "[ENV] Env file path",
+      "type": "text",
+      "placeholder": "/opt/myapp/.env",
+      "default": ""
+    },
+    {
+      "name": "env_key",
+      "label": "[ENV] Key name",
+      "type": "text",
+      "placeholder": "DB_HOST",
+      "default": ""
+    },
+    {
+      "name": "env_old_value",
+      "label": "[ENV] Current value (blank = match any)",
+      "type": "text",
+      "placeholder": "localhost",
+      "default": ""
+    },
+    {
+      "name": "env_new_value",
+      "label": "[ENV] New value",
+      "type": "text",
+      "placeholder": "db.internal",
+      "default": ""
+    },
+
+    {
+      "name": "remove_path",
+      "label": "[REMOVE] Path to delete",
+      "type": "text",
+      "placeholder": "/tmp/old_backup",
+      "default": ""
+    },
+
+    {
+      "name": "kill_pid",
+      "label": "[KILL] PID to kill",
+      "type": "text",
+      "placeholder": "1234",
+      "default": ""
+    },
+    {
+      "name": "kill_signal",
+      "label": "[KILL] Signal",
+      "type": "select",
+      "options": ["15", "9", "1", "2", "3"],
+      "default": "15"
+    },
+
+    {
+      "name": "find_path",
+      "label": "[FIND] Search in path",
+      "type": "text",
+      "placeholder": "/var/log",
+      "default": ""
+    },
+    {
+      "name": "find_pattern",
+      "label": "[FIND] Filename pattern",
+      "type": "text",
+      "placeholder": "*.log",
+      "default": "*"
+    },
+    {
+      "name": "find_older_than_days",
+      "label": "[FIND] Older than (days, 0 = any age)",
+      "type": "text",
+      "placeholder": "30",
+      "default": "0"
+    },
+
+    {
+      "name": "symlink_src",
+      "label": "[SYMLINK] Target (what the link points to)",
+      "type": "text",
+      "placeholder": "/opt/myapp-v2.0",
+      "default": ""
+    },
+    {
+      "name": "symlink_dest",
+      "label": "[SYMLINK] Link path (the shortcut)",
+      "type": "text",
+      "placeholder": "/opt/myapp",
+      "default": ""
+    },
+
+    {
+      "name": "du_path",
+      "label": "[DISK USAGE] Path to check",
+      "type": "text",
+      "placeholder": "/var/log",
+      "default": "/"
+    },
+
+    {
+      "name": "list_path",
+      "label": "[LIST DIR] Directory to list",
+      "type": "text",
+      "placeholder": "/opt",
+      "default": "/"
+    },
+
+    {
+      "name": "info_path",
+      "label": "[FILE INFO] Path to inspect",
+      "type": "text",
+      "placeholder": "/etc/nginx/nginx.conf",
+      "default": ""
+    },
+
+    {
+      "name": "move_src",
+      "label": "[MOVE] Source path",
+      "type": "text",
+      "placeholder": "/opt/oldname",
+      "default": ""
+    },
+    {
+      "name": "move_dest",
+      "label": "[MOVE] Destination path",
+      "type": "text",
+      "placeholder": "/opt/newname",
+      "default": ""
+    },
+
+    {
+      "name": "touch_path",
+      "label": "[TOUCH] File path to create/update",
+      "type": "text",
+      "placeholder": "/opt/myapp/.lock",
+      "default": ""
+    },
+
+    {
+      "name": "grep_file",
+      "label": "[GREP] File to search in",
+      "type": "text",
+      "placeholder": "/etc/nginx/nginx.conf",
+      "default": ""
+    },
+    {
+      "name": "grep_pattern",
+      "label": "[GREP] Pattern to search",
+      "type": "text",
+      "placeholder": "server_name",
+      "default": ""
+    }
+  ]
+}

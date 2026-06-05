@@ -1,0 +1,26 @@
+{
+  "description": "Clean up old logs, apt/yum cache, or run a dry-run to preview what would be deleted",
+  "inputs": [
+    {
+      "name": "cleanup_mode",
+      "label": "Cleanup Mode",
+      "type": "select",
+      "options": ["dry_run", "clean_logs", "apt_clean"],
+      "default": "dry_run"
+    },
+    {
+      "name": "target_path",
+      "label": "Log Directory to Clean",
+      "type": "text",
+      "placeholder": "/var/log",
+      "default": "/var/log"
+    },
+    {
+      "name": "log_retention_days",
+      "label": "Delete files older than (days)",
+      "type": "select",
+      "options": ["7", "14", "30", "60", "90"],
+      "default": "30"
+    }
+  ]
+}

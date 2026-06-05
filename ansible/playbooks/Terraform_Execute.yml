@@ -1,0 +1,150 @@
+---
+- name: Terraform Execution
+  hosts: all
+  become: yes
+
+  vars:
+    tf_workspace: "default"
+    tf_action: "plan"
+    tf_dir: "/opt/terraform"
+    tf_var_file: ""
+    auto_approve: "no"
+    tf_version: "latest"
+
+  tasks:
+
+    - name: Check if Terraform is installed
+      command: terraform version
+      register: tf_installed
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Install unzip (needed for Terraform install)
+      package:
+        name: unzip
+        state: present
+      when: tf_installed.rc != 0
+
+    - name: Install curl
+      package:
+        name: curl
+        state: present
+      when: tf_installed.rc != 0
+
+    - name: Get latest Terraform version if needed
+      shell: |
+        curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform \
+        | python3 -c "import sys,json; print(json.load(sys.stdin)['current_version'])"
+      register: latest_tf_version
+      when: tf_installed.rc != 0 and tf_version == "latest"
+      changed_when: false
+
+    - name: Set Terraform install version
+      set_fact:
+        tf_install_version: "{{ latest_tf_version.stdout | default(tf_version) }}"
+      when: tf_installed.rc != 0
+
+    - name: Download Terraform
+      get_url:
+        url: "https://releases.hashicorp.com/terraform/{{ tf_install_version }}/terraform_{{ tf_install_version }}_linux_amd64.zip"
+        dest: /tmp/terraform.zip
+        mode: '0644'
+      when: tf_installed.rc != 0
+
+    - name: Unzip and install Terraform
+      unarchive:
+        src: /tmp/terraform.zip
+        dest: /usr/local/bin/
+        remote_src: yes
+        mode: '0755'
+      when: tf_installed.rc != 0
+
+    - name: Verify Terraform is available
+      command: terraform version
+      register: tf_version_out
+      changed_when: false
+
+    - name: Print Terraform version
+      debug:
+        msg: "{{ tf_version_out.stdout_lines[0] }}"
+
+    - name: Ensure Terraform directory exists
+      file:
+        path: "{{ tf_dir }}"
+        state: directory
+
+    - name: Terraform Init
+      shell: terraform init -input=false
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_init
+      environment:
+        TF_IN_AUTOMATION: "1"
+
+    - name: Print init output
+      debug:
+        msg: "{{ tf_init.stdout_lines }}"
+
+    - name: Select or create workspace
+      shell: |
+        terraform workspace select {{ tf_workspace }} 2>/dev/null || \
+        terraform workspace new {{ tf_workspace }}
+      args:
+        chdir: "{{ tf_dir }}"
+      register: ws_result
+      changed_when: "'Created' in ws_result.stdout or 'Switched' in ws_result.stdout"
+
+    - name: Terraform Plan (no var file)
+      shell: terraform plan -input=false -out=/tmp/tfplan
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_plan
+      when: tf_action == "plan" and tf_var_file == ""
+      environment:
+        TF_IN_AUTOMATION: "1"
+
+    - name: Terraform Plan (with var file)
+      shell: terraform plan -input=false -var-file="{{ tf_var_file }}" -out=/tmp/tfplan
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_plan
+      when: tf_action == "plan" and tf_var_file != ""
+      environment:
+        TF_IN_AUTOMATION: "1"
+
+    - name: Terraform Apply (auto approve)
+      shell: terraform apply -input=false -auto-approve {{ '-var-file=' + tf_var_file if tf_var_file != '' else '' }}
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_apply
+      when: tf_action == "apply" and auto_approve == "yes"
+      environment:
+        TF_IN_AUTOMATION: "1"
+
+    - name: Terraform Apply (manual approve — runs plan only in automation)
+      shell: terraform plan -input=false -detailed-exitcode {{ '-var-file=' + tf_var_file if tf_var_file != '' else '' }}
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_apply
+      when: tf_action == "apply" and auto_approve == "no"
+      failed_when: tf_apply.rc == 1
+      environment:
+        TF_IN_AUTOMATION: "1"
+
+    - name: Terraform Destroy (auto approve)
+      shell: terraform destroy -input=false -auto-approve {{ '-var-file=' + tf_var_file if tf_var_file != '' else '' }}
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_destroy
+      when: tf_action == "destroy" and auto_approve == "yes"
+      environment:
+        TF_IN_AUTOMATION: "1"
+
+    - name: Terraform Destroy (skipped — auto_approve=no)
+      debug:
+        msg: "Destroy skipped: set Auto Approve = yes to confirm destruction"
+      when: tf_action == "destroy" and auto_approve == "no"
+
+    - name: Print action output
+      debug:
+        msg: "{{ (tf_plan | default(tf_apply) | default(tf_destroy)).stdout_lines | default(['No output']) }}"
